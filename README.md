@@ -36,3 +36,15 @@ Please download the pretrained BigGAN model from [BigGAN-PyTorch](https://drive.
 
 ### Run the optimization
 `python opt_c_embedding_over_multi_z.py`
+
+## Citation
+If you find this work useful for your research, please consider citing:
+`@article{li2019improving,
+  title={Improving sample diversity of a pre-trained, class-conditional GAN by changing its class embeddings},
+  author={Li, Qi and Mai, Long and Nguyen, Anh},
+  journal={arXiv preprint arXiv:1910.04760},
+  year={2019}
+}`
+
+## Acknowledgments
+This work is supported by the National Science Foundation under Grant No. 1850117 and a donation from Adobe Inc.
