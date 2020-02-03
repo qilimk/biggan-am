@@ -11,6 +11,20 @@ Mode collapse is a well-known issue with Generative Adversarial Networks (GANs) 
 
 ![ceaser](/doc/ceaser_daisy.png)
 
-![framework](/doc/frame_work.png)
+![framework](/doc/framework.png)
 
 ![synthesize_Places365](/doc/synthesize_new_dataset_images.png)
+
+## Requirments:
+
+### Python
+* python 3.6
+* Pytorch
+* numpy
+* torchvision
+* pillow
+
+### BigGAN
+
+### robustness package
+Please install robustness package from [MadryLab](https://github.com/MadryLab/robustness)
