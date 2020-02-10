@@ -1,6 +1,7 @@
+.idea
+
 # BigGAN weights
 experiments_weights/*.pth
 
 # OS junk files
 *.DS_Store
-
