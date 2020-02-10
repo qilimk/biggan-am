@@ -15,7 +15,9 @@ Mode collapse is a well-known issue with Generative Adversarial Networks (GANs) 
 
 ![synthesize_Places365](/doc/synthesize_new_dataset_images.png)
 
-## Requirments
+## Requirements
+
+Please download the pre-trained BigGAN model from [BigGAN-PyTorch](https://drive.google.com/file/d/1nAle7FCVFZdix2--ks0r5JBkFnKw8ctW/view).
 
 * Python 3.6
 * PyTorch
@@ -24,12 +26,7 @@ Mode collapse is a well-known issue with Generative Adversarial Networks (GANs) 
 * Pillow
 * [`robustness`](https://github.com/MadryLab/robustness)
 
-## Getting Started
-
-### Pre-trained Models
-Please download the pre-trained BigGAN model from [BigGAN-PyTorch](https://drive.google.com/file/d/1nAle7FCVFZdix2--ks0r5JBkFnKw8ctW/view).
-
-### Run the optimization
+## Run the optimization
 
 ```bash
 python3 opt_c_embedding_over_multi_z.py
