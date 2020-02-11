@@ -129,37 +129,6 @@ def get_diversity_loss():
         )
 
 
-def final_samples():
-    dt = datetime.datetime.now()
-    final_y = torch.clamp(init_embedding, min_clamp, max_clamp)
-    repeat_final_y = final_y.repeat(10, 1).to(device)
-    save_all = []
-    sum_final_probs = 0
-    torch.set_rng_state(state_z)
-    for show_id in range(3):
-
-        final_z = torch.randn((10, dim_z), device=device, requires_grad=False)
-        with torch.no_grad():
-            gan_image_tensor = G(final_z, repeat_final_y)
-            final_image_tensor = nn.functional.interpolate(gan_image_tensor, size=224)
-            final_out = eval_net(final_image_tensor)
-
-        final_probs = nn.functional.softmax(final_out, dim=1)
-        avg_prob_y = final_probs[:, target_class].mean().item()
-
-        save_all.append(gan_image_tensor)
-        sum_final_probs += avg_prob_y
-
-    final_image_path = f"{dir_name}/final_{str(model)}_y_over_z_target_"
-    final_image_path += f"{target_class:0=3d}_iter_{n_iters:0=3d}_znum_"
-    final_image_path += f"{z_num:0=3d}_optnum_{steps_per_z:0=3d}_lr_"
-    final_image_path += f"{lr:.6f}_avgprob_{steps_per_z:0=3d}_lr_"
-    final_image_path += f"{sum_final_probs / 3.0:.3f}_{dt:%m%d%H%M%S}.jpg"
-
-    save_all = torch.cat(save_all, dim=0)
-    save_image(save_all, final_image_path, normalize=True, nrow=10)
-
-
 if __name__ == "__main__":
     args = parse_options()
     ini_y_num = args.ini_y_num
@@ -391,6 +360,30 @@ if __name__ == "__main__":
             }
 
             save_intermediate_data(plot_data, intermediate_data_save)
-            final_samples()
             np.save(filename_y_save, y_save)
             np.save(filename_z_save, z_save)
+
+            # Save final samples.
+            dt = datetime.datetime.now()
+            final_y = torch.clamp(init_embedding, min_clamp, max_clamp)
+            repeat_final_y = final_y.repeat(10, 1).to(device)
+            save_all = []
+            sum_final_probs = 0
+            torch.set_rng_state(state_z)
+            for show_id in range(3):
+                final_z = torch.randn((10, dim_z), device=device, requires_grad=False)
+                with torch.no_grad():
+                    gan_image_tensor = G(final_z, repeat_final_y)
+                    final_image_tensor = nn.functional.interpolate(gan_image_tensor,
+                                                                   size=224)
+                    final_out = eval_net(final_image_tensor)
+
+                final_probs = nn.functional.softmax(final_out, dim=1)
+                avg_prob_y = final_probs[:, target_class].mean().item()
+
+                save_all.append(gan_image_tensor)
+                sum_final_probs += avg_prob_y
+
+            final_image_path = f"{dir_name}/final.jpg"
+            save_all = torch.cat(save_all, dim=0)
+            save_image(save_all, final_image_path, normalize=True, nrow=10)
