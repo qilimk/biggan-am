@@ -17,7 +17,14 @@ Mode collapse is a well-known issue with Generative Adversarial Networks (GANs) 
 
 ## Requirements
 
-Please download the pre-trained BigGAN model from [BigGAN-PyTorch](https://drive.google.com/file/d/1nAle7FCVFZdix2--ks0r5JBkFnKw8ctW/view).
+Download the pre-trained BigGAN model weights (see [here](https://stackoverflow.com/a/48133859/1316276) for an explanation of the commands):
+
+```bash
+cd biggan-am/pretrained_weights
+fileid="1nAle7FCVFZdix2--ks0r5JBkFnKw8ctW"
+curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=${fileid}" > /dev/null
+curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=${fileid}" -o biggan_weights.pth
+```
 
 * Python 3.6
 * PyTorch
@@ -29,6 +36,7 @@ Please download the pre-trained BigGAN model from [BigGAN-PyTorch](https://drive
 ## Run the optimization
 
 ```bash
+cd biggan-am
 python3 opt_c_embedding_over_multi_z.py
 ```
 
