@@ -131,7 +131,6 @@ if __name__ == "__main__":
     steps_per_z = args.steps_per_z
     model = args.model
     resolution = args.resolution
-    gaussian_var = args.gaussian_var
     with_dloss = args.with_dloss
     alpha = args.alpha
     dloss_function = args.dloss_function
