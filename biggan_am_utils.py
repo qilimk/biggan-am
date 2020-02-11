@@ -221,7 +221,7 @@ def parse_options():
     parser.add_argument(
         "--class_list",
         type=str,
-        default="../class_list.txt",
+        default="class_list.txt",
         help="List of classes to optimize.",
     )
 
