@@ -231,11 +231,8 @@ if __name__ == "__main__":
         eval_net = load_net("alexnet")
         eval_net.eval()
 
-    if with_dloss:
-        print(f"Using the diversity loss.")
-        if dloss_funtion == "features":
-            print(f"Diversity loss in feature space.")
-            alexnet_conv5 = load_net("alexnet_conv5")
+    if with_dloss and (dloss_funtion == "features"):
+        alexnet_conv5 = load_net("alexnet_conv5")
 
     print(f"BigGAN initialization time: {time.time() - start_time}")
 
@@ -247,6 +244,14 @@ if __name__ == "__main__":
     list_2 = list((np.array(range(1, z_num, 2)) + 4) % 20) + [
         random.randint(10, 19) for p in range(0, 10)
     ]
+
+    if with_dloss:
+        print("Using the diversity loss.")
+        half_z_num = int(z_num / 2)
+        odd_list = list(range(0, z_num - 1, 2)) + list_1
+        even_list = list(range(1, z_num, 2)) + list_2
+        if dloss_funtion == "features":
+            print(f"Diversity loss in feature space.")
 
     save_metadata = {
         "experiment_name": experiment_name,
@@ -338,9 +343,6 @@ if __name__ == "__main__":
 
                     # Add diversity loss.
                     if with_dloss:
-                        half_z_num = int(z_num / 2)
-                        odd_list = list(range(0, z_num - 1, 2)) + list_1
-                        even_list = list(range(1, z_num, 2)) + list_2
                         diversity_loss = get_diversity_loss()
                         total_loss += diversity_loss
 
