@@ -1,5 +1,4 @@
 import BigGAN
-import json
 import numpy as np
 import random
 import time
@@ -81,38 +80,6 @@ def get_initial_embeddings():
             raise ValueError("Please choose a method to generate the one-hot class.")
 
     return (init_embeddings, index_list)
-
-
-def get_diversity_loss():
-    denom = F.pairwise_distance(zs[odd_list, :], zs[even_list, :])
-
-    if dloss_function == "softmax":
-
-        return -alpha * torch.sum(
-            F.pairwise_distance(total_probs[odd_list, :], total_probs[even_list, :])
-            / denom
-        )
-
-    elif dloss_function == "features":
-
-        features_out = alexnet_conv5(resized_images_tensor)
-        return -alpha * torch.sum(
-            F.pairwise_distance(
-                features_out[odd_list, :].view(half_z_num, -1),
-                features_out[even_list, :].view(half_z_num, -1),
-            )
-            / denom
-        )
-
-    else:
-
-        return -alpha * torch.sum(
-            F.pairwise_distance(
-                resized_images_tensor[odd_list, :].view(half_z_num, -1),
-                resized_images_tensor[even_list, :].view(half_z_num, -1),
-            )
-            / denom
-        )
 
 
 if __name__ == "__main__":
@@ -255,38 +222,53 @@ if __name__ == "__main__":
                     resized_images_tensor = nn.functional.interpolate(
                         gan_images_tensor, size=224
                     )
-                    total_out = net(resized_images_tensor)
-                    total_loss = criterion(total_out, labels)
+                    pred_logits = net(resized_images_tensor)
+                    loss = criterion(pred_logits, labels)
 
                     # Add diversity loss.
                     if with_dloss:
-                        diversity_loss = get_diversity_loss()
-                        total_loss += diversity_loss
+                        denom = F.pairwise_distance(zs[odd_list, :], zs[even_list, :])
 
-                    total_loss.backward()
+                        if dloss_function == "softmax":
+
+                            diversity_loss = torch.sum(
+                                F.pairwise_distance(
+                                    pred_probs[odd_list, :], pred_probs[even_list, :]
+                                )
+                            )
+
+                        elif dloss_function == "features":
+
+                            features_out = alexnet_conv5(resized_images_tensor)
+                            diversity_loss = torch.sum(
+                                F.pairwise_distance(
+                                    features_out[odd_list, :].view(half_z_num, -1),
+                                    features_out[even_list, :].view(half_z_num, -1),
+                                )
+                            )
+
+                        else:
+
+                            diversity_loss = torch.sum(
+                                F.pairwise_distance(
+                                    resized_images_tensor[odd_list, :].view(
+                                        half_z_num, -1
+                                    ),
+                                    resized_images_tensor[even_list, :].view(
+                                        half_z_num, -1
+                                    ),
+                                )
+                            )
+
+                        loss += -alpha * diversity_loss / denom
+
+                    loss.backward()
                     optimizer.step()
-
-                    total_probs = nn.functional.softmax(total_out, dim=1)
-                    (top1_prob, top1_index) = torch.max(total_probs, 1)
-                    target_prob = total_probs[:, target_class]
-                    for z_index in range(z_num):
-                        z_index_list.append(z_index)
-                        iters_no_list.append(epoch)
-                        step_index_list.append(n)
-                        target_prob_list.append(
-                            float(target_prob[z_index].cpu().detach().numpy())
-                        )
-                        target_index_list.append(target_class)
-                        top1_prob_list.append(
-                            float(top1_prob[z_index].cpu().detach().numpy())
-                        )
-                        top1_index_list.append(
-                            int(top1_index[z_index].cpu().detach().numpy())
-                        )
 
                     y_save.append(clamped_embedding.detach().cpu().numpy())
 
-                    avg_target_prob = total_probs[:, target_class].mean().item()
+                    pred_probs = nn.functional.softmax(pred_logits, dim=1)
+                    avg_target_prob = pred_probs[:, target_class].mean().item()
                     print(
                         f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\tavg_prob:{avg_target_prob:.4f}"
                     )
@@ -299,21 +281,6 @@ if __name__ == "__main__":
                     )
 
                     torch.cuda.empty_cache()
-                    print(output_image_path)
-
-            plot_data = {
-                "run_no": iters_no_list,
-                "z_index": z_index_list,
-                "step_index": step_index_list,
-                "target_prob": target_prob_list,
-                "top1_prob": top1_prob_list,
-                "top1_index": top1_index_list,
-                "target_index": target_index_list,
-            }
-
-            json_save = json.dumps(plot_data)
-            with open(intermediate_data_save, "w") as f:
-                f.write(json_save)
 
             np.save(filename_y_save, y_save)
             np.save(filename_z_save, z_save)
@@ -327,13 +294,13 @@ if __name__ == "__main__":
                 final_z = torch.randn((10, dim_z), device=device, requires_grad=False)
                 with torch.no_grad():
                     gan_images_tensor = G(final_z, repeat_final_embedding)
-                    final_images_tensor = nn.functional.interpolate(
+                    resized_images_tensor = nn.functional.interpolate(
                         gan_images_tensor, size=224
                     )
-                    final_out = eval_net(final_images_tensor)
+                    pred_logits = eval_net(resized_images_tensor)
 
-                final_probs = nn.functional.softmax(final_out, dim=1)
-                avg_target_prob = final_probs[:, target_class].mean().item()
+                pred_probs = nn.functional.softmax(pred_logits, dim=1)
+                avg_target_prob = pred_probs[:, target_class].mean().item()
 
                 save_all.append(gan_images_tensor)
 
