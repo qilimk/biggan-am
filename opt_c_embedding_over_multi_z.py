@@ -14,7 +14,7 @@ def get_initial_embeddings():
     embedding_dim = 128
 
     if resolution == 128:
-        embedding_name = weight_name + "_embedding.npy"
+        embedding_name = "other_embedding.npy"
         class_embeddings = np.load(embedding_name)
     else:
         class_embeddings = np.load("1000_embedding_array.npy")
@@ -126,8 +126,7 @@ if __name__ == "__main__":
     alpha = args.alpha
     dloss_function = args.dloss_function
     noise_std = args.noise_std
-    weight_path = args.weight_path
-    weight_name = weight_path.split("/")[-1].split(".")[0]
+    weights_path = args.weights_path
     class_list = args.class_list
 
     target_list = []
@@ -168,7 +167,7 @@ if __name__ == "__main__":
     config = get_config(resolution)
     G = BigGAN.Generator(**config)
     biggan_weights = "G.pth" if resolution == 256 else "G_ema.pth"
-    G.load_state_dict(torch.load(f"{weight_path}/{biggan_weights}"), strict=False)
+    G.load_state_dict(torch.load(f"{weights_path}/{biggan_weights}"), strict=False)
     G = G.to(device)
     G.eval()
 
