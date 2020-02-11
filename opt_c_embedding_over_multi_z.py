@@ -179,7 +179,7 @@ if __name__ == "__main__":
             )
             y_embedding = np.load(embedding_name)
         else:
-            y_embedding = np.load("./mean_1000_embedding.npy")
+            y_embedding = np.load("mean_1000_embedding.npy")
 
         y_embedding_torch = torch.from_numpy(y_embedding)
         y_mean_torch = torch.mean(y_embedding_torch, dim=0)
@@ -272,7 +272,7 @@ if __name__ == "__main__":
             embedding_name = weight_name + "_embedding.npy"
             y_embedding = np.load(embedding_name)
         else:
-            y_embedding = np.load("./1000_embedding_array.npy")
+            y_embedding = np.load("1000_embedding_array.npy")
 
     for target_class in target_list:
 

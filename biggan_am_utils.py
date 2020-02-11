@@ -69,7 +69,7 @@ def load_madrylab_imagenet(arch):
     model_kwargs = {
         "arch": arch,
         "dataset": dataset,
-        "resume_path": f"./madrylab_models/{data}.pt",
+        "resume_path": f"madrylab_models/{data}.pt",
         "state_dict_path": "model",
     }
     (model, _) = model_utils.make_and_restore_model(**model_kwargs)
@@ -246,7 +246,7 @@ def save_files(
 ):
     # Create the output folder
     dt = datetime.datetime.now()
-    dir_name = f"./{experiment_name}_{model}_opt_y_over_z/opt_y_multi_z_target_"
+    dir_name = f"{experiment_name}_{model}_opt_y_over_z/opt_y_multi_z_target_"
     dir_name += f"{target_class:0=3d}_optmethod_{ini_y_method}_"
     if one_hot:
         dir_name += f"{ini_onehot_method}_"
