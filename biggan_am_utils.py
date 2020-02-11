@@ -108,13 +108,6 @@ def load_net(model_name):
         raise ValueError(f"{model_name} is not a supported classifier...")
 
 
-def save_intermediate_data(plot_data, path):
-    json_save = json.dumps(plot_data)
-    f = open(path, "w")
-    f.write(json_save)
-    f.close()
-
-
 def parse_options():
     parser = argparse.ArgumentParser(description="Optimizing with seed.")
 

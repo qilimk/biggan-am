@@ -359,6 +359,10 @@ if __name__ == "__main__":
                 "target_index": target_index_list,
             }
 
+            json_save = json.dumps(plot_data)
+            with open(intermediate_data_save, "w") as f:
+                f.write(json_save)
+
             save_intermediate_data(plot_data, intermediate_data_save)
             np.save(filename_y_save, y_save)
             np.save(filename_z_save, z_save)
