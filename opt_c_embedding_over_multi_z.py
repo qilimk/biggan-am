@@ -56,7 +56,7 @@ def slt_one_hot(num_y, num_samples):
         index_list = sort_index[-num_y:]
 
     elif ini_onehot_method == "random":
-        random_list = random.sample(range(0, 999), num_y)
+        random_list = random.sample(range(0, 1000), num_y)
         y_slt = y_embedding_torch[random_list]
         index_list = random_list
 
