@@ -100,14 +100,14 @@ def slt_ini_method():
 def get_diversity_loss():
     denom = F.pairwise_distance(z_total[odd_list, :], z_total[even_list, :])
 
-    if dloss_funtion == "softmax":
+    if dloss_function == "softmax":
 
         return -alpha * torch.sum(
             F.pairwise_distance(total_probs[odd_list, :], total_probs[even_list, :])
             / denom
         )
 
-    elif dloss_funtion == "features":
+    elif dloss_function == "features":
 
         features_out = alexnet_conv5(total_image_tensor)
         return -alpha * torch.sum(
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     experiment_name = args.experiment_name
     with_dloss = args.with_dloss
     alpha = args.alpha
-    dloss_funtion = args.dloss_funtion
+    dloss_function = args.dloss_function
     noise_std = args.noise_std
     weight_path = args.weight_path
     weight_name = weight_path.split("/")[-1].split(".")[0]
@@ -201,7 +201,7 @@ if __name__ == "__main__":
         "steps_per_z": steps_per_z,
         "lr": lr,
         "alpha": alpha,
-        "dloss_function": dloss_funtion,
+        "dloss_function": dloss_function,
         "seed_z": seed_z,
     }
 
@@ -217,7 +217,7 @@ if __name__ == "__main__":
 
     if with_dloss:
         print("Using the diversity loss.")
-        if dloss_funtion == "features":
+        if dloss_function == "features":
             print(f"Diversity loss in feature space.")
 
     # Set random seed.
@@ -263,7 +263,7 @@ if __name__ == "__main__":
         half_z_num = int(z_num / 2)
         odd_list = list(range(0, z_num - 1, 2)) + list_1
         even_list = list(range(1, z_num, 2)) + list_2
-        if dloss_funtion == "features":
+        if dloss_function == "features":
             alexnet_conv5 = load_net("alexnet_conv5")
 
     print(f"BigGAN initialization time: {time.time() - start_time}")
