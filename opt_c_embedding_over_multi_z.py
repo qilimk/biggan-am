@@ -13,9 +13,11 @@ def slt_ini_method():
     index_list = []
 
     if ini_y_method == "random":
+
         y_total = torch.randn((ini_y_num, 128)) * gaussian_var
 
     elif ini_y_method == "mean_random":
+
         if resolution == 128:
             embedding_name = (
                 weight_path.split("/")[-1].split(".")[0] + "_embedding_mean.npy"
