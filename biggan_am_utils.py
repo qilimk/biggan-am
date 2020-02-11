@@ -9,10 +9,13 @@ import torchvision.models as models
 from robustness import datasets, model_utils
 from user_constants import DATA_PATH_DICT
 
+dim_z_dict = {128: 120, 256: 140, 512: 128}
+attn_dict = {128: "64", 256: "128", 512: "64"}
+max_clamp_dict = {128: 0.83, 256: 0.61}
+min_clamp_dict = {128: -0.88, 256: -0.59}
+
 
 def get_config(resolution):
-    attn_dict = {128: "64", 256: "128", 512: "64"}
-    dim_z_dict = {128: 120, 256: 140, 512: 128}
     return {
         "G_param": "SN",
         "D_param": "SN",

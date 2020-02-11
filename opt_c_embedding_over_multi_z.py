@@ -25,14 +25,12 @@ def slt_ini_method():
 
 
 def slt_one_hot(num_y, num_samples):
-    y_embedding_torch = torch.from_numpy(y_embedding)
-
     if ini_y_method.endswith("top"):
 
         avg_list = []
         for i in range(1000):
 
-            final_y = torch.clamp(y_embedding_torch[i], min_clamp, max_clamp)
+            final_y = y_embeddings_clamped[i]
             repeat_final_y = final_y.repeat(num_samples, 1)
             final_z = torch.randn((num_samples, dim_z), requires_grad=False)
 
@@ -168,9 +166,6 @@ if __name__ == "__main__":
         for f in t_list.readlines():
             target_list.append(int(f))
 
-    dim_z_dict = {128: 120, 256: 140, 512: 128}
-    max_clamp_dict = {128: 0.83, 256: 0.61}
-    min_clamp_dict = {128: -0.88, 256: -0.59}
     dim_z = dim_z_dict[resolution]
     max_clamp = max_clamp_dict[resolution]
     min_clamp = min_clamp_dict[resolution]
@@ -254,6 +249,9 @@ if __name__ == "__main__":
             y_embedding = np.load(embedding_name)
         else:
             y_embedding = np.load("1000_embedding_array.npy")
+
+        y_embedding_torch = torch.from_numpy(y_embedding)
+        y_embeddings_clamped = torch.clamp(y_embedding_torch, min_clamp, max_clamp)
 
     elif ini_y_method == "mean_random":
 
