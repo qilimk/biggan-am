@@ -62,7 +62,7 @@ def slt_one_hot(num_y, num_samples):
         index_list = sort_index[-num_y:]
 
     elif ini_y_method.endswith("random"):
-        random_list = random.sample(range(0, 1000), num_y)
+        random_list = random.sample(range(1000), num_y)
         y_slt = y_embedding_torch[random_list]
         index_list = random_list
 
@@ -163,6 +163,18 @@ if __name__ == "__main__":
     weight_name = weight_path.split("/")[-1].split(".")[0]
     class_list = args.class_list
 
+    target_list = []
+    with open(class_list, "r") as t_list:
+        for f in t_list.readlines():
+            target_list.append(int(f))
+
+    dim_z_dict = {128: 120, 256: 140, 512: 128}
+    max_clamp_dict = {128: 0.83, 256: 0.61}
+    min_clamp_dict = {128: -0.88, 256: -0.59}
+    dim_z = dim_z_dict[resolution]
+    max_clamp = max_clamp_dict[resolution]
+    min_clamp = min_clamp_dict[resolution]
+
     save_metadata = {
         "experiment_name": experiment_name,
         "model": model,
@@ -177,60 +189,18 @@ if __name__ == "__main__":
         "seed_z": seed_z,
     }
 
-    if ini_y_method == "random":
-        print("Using random initialization of y.")
-    elif ini_y_method.startswith("one_hot"):
-        print("Using one hot initialization of y.")
-        save_metadata["one_hot"] = True
-        if resolution == 128:
-            embedding_name = weight_name + "_embedding.npy"
-            y_embedding = np.load(embedding_name)
-        else:
-            y_embedding = np.load("1000_embedding_array.npy")
-
-    elif ini_y_method == "mean_random":
-
-        # Load mean as the initial value of y.
-        print("Using mean embedding vector to initialize y.")
-        if resolution == 128:
-            embedding_name = (
-                weight_path.split("/")[-1].split(".")[0] + "_embedding_mean.npy"
-            )
-            y_embedding = np.load(embedding_name)
-        else:
-            y_embedding = np.load("mean_1000_embedding.npy")
-
-        y_embedding_torch = torch.from_numpy(y_embedding)
-        y_mean_torch = torch.mean(y_embedding_torch, dim=0)
-
-    else:
-        raise ValueError("Please choose a method to initialize the y!!!")
-
     # Set random seed.
     torch.manual_seed(seed_z)
     torch.cuda.manual_seed(seed_z)
     np.random.seed(seed_z)
     random.seed(seed_z)
 
+    # Load the models.
+    start_time = time.time()
+
     # Set up cudnn.benchmark for free speed.
     torch.backends.cudnn.benchmark = True
     device = "cuda:0"
-
-    # Read the target classes file.
-    target_list = []
-    with open(class_list, "r") as t_list:
-        for f in t_list.readlines():
-            target_list.append(int(f))
-
-    dim_z_dict = {128: 120, 256: 140, 512: 128}
-    max_clamp_dict = {128: 0.83, 256: 0.61}
-    min_clamp_dict = {128: -0.88, 256: -0.59}
-    dim_z = dim_z_dict[resolution]
-    max_clamp = max_clamp_dict[resolution]
-    min_clamp = min_clamp_dict[resolution]
-
-    # Load the models.
-    start_time = time.time()
 
     print("Loading the BigGAN generator model...")
     config = get_config(resolution)
@@ -270,6 +240,38 @@ if __name__ == "__main__":
         even_list = list(range(1, z_num, 2)) + list_2
         if dloss_funtion == "features":
             print(f"Diversity loss in feature space.")
+
+    if ini_y_method == "random":
+
+        print("Using random initialization of y.")
+
+    elif ini_y_method.startswith("one_hot"):
+
+        print("Using one hot initialization of y.")
+        save_metadata["one_hot"] = True
+        if resolution == 128:
+            embedding_name = weight_name + "_embedding.npy"
+            y_embedding = np.load(embedding_name)
+        else:
+            y_embedding = np.load("1000_embedding_array.npy")
+
+    elif ini_y_method == "mean_random":
+
+        # Load mean as the initial value of y.
+        print("Using mean embedding vector to initialize y.")
+        if resolution == 128:
+            embedding_name = (
+                weight_path.split("/")[-1].split(".")[0] + "_embedding_mean.npy"
+            )
+            y_embedding = np.load(embedding_name)
+        else:
+            y_embedding = np.load("mean_1000_embedding.npy")
+
+        y_embedding_torch = torch.from_numpy(y_embedding)
+        y_mean_torch = torch.mean(y_embedding_torch, dim=0)
+
+    else:
+        raise ValueError("Please choose a method to initialize the y!!!")
 
     for target_class in target_list:
 
