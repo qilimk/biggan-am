@@ -149,24 +149,10 @@ if __name__ == "__main__":
     max_clamp = max_clamp_dict[resolution]
     min_clamp = min_clamp_dict[resolution]
 
-    save_metadata = {
-        "model": model,
-        "index_class": -1,
-        "ini_y_method": ini_y_method,
-        "n_iters": n_iters,
-        "z_num": z_num,
-        "steps_per_z": steps_per_z,
-        "lr": lr,
-        "alpha": alpha,
-        "dloss_function": dloss_function,
-        "seed_z": seed_z,
-    }
-
     if ini_y_method == "random":
         print("Using random initialization of y.")
     elif ini_y_method.startswith("one_hot"):
         print("Using one hot initialization of y.")
-        save_metadata["one_hot"] = True
     elif ini_y_method == "mean_random":
         print("Using mean embedding vector to initialize y.")
     else:
@@ -226,7 +212,6 @@ if __name__ == "__main__":
 
     for target_class in target_list:
 
-        save_metadata["target_class"] = target_class
         (y_total, index_list) = slt_ini_method()
         labels = torch.LongTensor([target_class] * z_num).to(device)
 
@@ -244,9 +229,6 @@ if __name__ == "__main__":
 
             init_embedding = y_total[y_n].unsqueeze(0).to(device)
             init_embedding.requires_grad_()
-
-            if ini_y_method.startswith("one_hot"):
-                save_metadata["index_class"] = index_list[y_n]
 
             dir_name = "results"
             os.makedirs(dir_name, exist_ok=True)
