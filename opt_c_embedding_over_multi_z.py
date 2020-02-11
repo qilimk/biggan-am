@@ -11,69 +11,88 @@ from torchvision.utils import save_image
 
 def slt_ini_method():
     index_list = []
+
     if ini_y_method == "random":
         y_total = torch.randn((ini_y_num, 128)) * gaussian_var
 
     elif ini_y_method == "mean_random":
+        if resolution == 128:
+            embedding_name = (
+                weight_path.split("/")[-1].split(".")[0] + "_embedding_mean.npy"
+            )
+            y_embedding = np.load(embedding_name)
+        else:
+            y_embedding = np.load("mean_1000_embedding.npy")
+
+        y_embedding_torch = torch.from_numpy(y_embedding)
+        y_mean_torch = torch.mean(y_embedding_torch, dim=0)
+
         y_total = y_mean_torch.repeat(ini_y_num, 1)
         y_total += torch.randn((ini_y_num, 128)) * 0.1
 
     elif ini_y_method.startswith("one_hot"):
-        (y_total, index_list) = slt_one_hot(ini_y_num, 10)
+
+        if resolution == 128:
+            embedding_name = weight_name + "_embedding.npy"
+            y_embedding = np.load(embedding_name)
+        else:
+            y_embedding = np.load("1000_embedding_array.npy")
+
+        y_embedding_torch = torch.from_numpy(y_embedding)
+
+        num_y = ini_y_num
+
+        if ini_y_method.endswith("top"):
+            y_embeddings_clamped = torch.clamp(y_embedding_torch, min_clamp, max_clamp)
+
+            num_samples = 10
+            avg_list = []
+            for i in range(1000):
+
+                final_y = y_embeddings_clamped[i]
+                repeat_final_y = final_y.repeat(num_samples, 1)
+                final_z = torch.randn((num_samples, dim_z), requires_grad=False)
+
+                with torch.no_grad():
+                    gan_image_tensor = G(final_z, repeat_final_y)
+                    if model == "inception_v3":
+                        final_image_tensor = nn.functional.interpolate(
+                            gan_image_tensor, size=299
+                        )
+                        (final_out, _) = eval_net(final_image_tensor)
+                    else:
+                        final_image_tensor = nn.functional.interpolate(
+                            gan_image_tensor, size=224
+                        )
+                        final_out = eval_net(final_image_tensor)
+
+                final_probs = nn.functional.softmax(final_out, dim=1)
+                avg_prob_y = final_probs[:, target_class].mean().item()
+                avg_list.append(avg_prob_y)
+
+            avg_array = np.array(avg_list)
+            sort_index = np.argsort(avg_array)
+
+            print(f"The top {num_y} guesses: {sort_index[-num_y:]}")
+
+            y_total = y_embedding_torch[sort_index[-num_y:]]
+            index_list = sort_index[-num_y:]
+
+        elif ini_y_method.endswith("random"):
+            random_list = random.sample(range(1000), num_y)
+            y_total = y_embedding_torch[random_list]
+            index_list = random_list
+
+        elif ini_y_method.endswith("origin"):
+            print(f"The noise std is: {noise_std}")
+            y_total = y_embedding_torch[target_class].unsqueeze(0).repeat(num_y, 1)
+            y_total += torch.randn((num_y, 128)) * noise_std
+            index_list = [target_class] * num_y
+
+        else:
+            raise ValueError("Please choose a method to generate the one-hot class.")
 
     return (y_total, index_list)
-
-
-def slt_one_hot(num_y, num_samples):
-    if ini_y_method.endswith("top"):
-
-        avg_list = []
-        for i in range(1000):
-
-            final_y = y_embeddings_clamped[i]
-            repeat_final_y = final_y.repeat(num_samples, 1)
-            final_z = torch.randn((num_samples, dim_z), requires_grad=False)
-
-            with torch.no_grad():
-                gan_image_tensor = G(final_z, repeat_final_y)
-                if model == "inception_v3":
-                    final_image_tensor = nn.functional.interpolate(
-                        gan_image_tensor, size=299
-                    )
-                    (final_out, _) = eval_net(final_image_tensor)
-                else:
-                    final_image_tensor = nn.functional.interpolate(
-                        gan_image_tensor, size=224
-                    )
-                    final_out = eval_net(final_image_tensor)
-
-            final_probs = nn.functional.softmax(final_out, dim=1)
-            avg_prob_y = final_probs[:, target_class].mean().item()
-            avg_list.append(avg_prob_y)
-
-        avg_array = np.array(avg_list)
-        sort_index = np.argsort(avg_array)
-
-        print(f"The top {num_y} guesses: {sort_index[-num_y:]}")
-
-        y_slt = y_embedding_torch[sort_index[-num_y:]]
-        index_list = sort_index[-num_y:]
-
-    elif ini_y_method.endswith("random"):
-        random_list = random.sample(range(1000), num_y)
-        y_slt = y_embedding_torch[random_list]
-        index_list = random_list
-
-    elif ini_y_method.endswith("origin"):
-        print(f"The noise std is: {noise_std}")
-        y_slt = y_embedding_torch[target_class].unsqueeze(0).repeat(num_y, 1)
-        y_slt += torch.randn((num_y, 128)) * noise_std
-        index_list = [target_class] * num_y
-
-    else:
-        raise ValueError("Please choose a method to generate the one-hot class.")
-
-    return (y_slt, index_list)
 
 
 def get_diversity_loss():
@@ -184,6 +203,21 @@ if __name__ == "__main__":
         "seed_z": seed_z,
     }
 
+    if ini_y_method == "random":
+        print("Using random initialization of y.")
+    elif ini_y_method.startswith("one_hot"):
+        print("Using one hot initialization of y.")
+        save_metadata["one_hot"] = True
+    elif ini_y_method == "mean_random":
+        print("Using mean embedding vector to initialize y.")
+    else:
+        raise ValueError("Please choose a method to initialize the y!!!")
+
+    if with_dloss:
+        print("Using the diversity loss.")
+        if dloss_funtion == "features":
+            print(f"Diversity loss in feature space.")
+
     # Set random seed.
     torch.manual_seed(seed_z)
     torch.cuda.manual_seed(seed_z)
@@ -214,11 +248,6 @@ if __name__ == "__main__":
         eval_net = load_net("alexnet")
         eval_net.eval()
 
-    if with_dloss and (dloss_funtion == "features"):
-        alexnet_conv5 = load_net("alexnet_conv5")
-
-    print(f"BigGAN initialization time: {time.time() - start_time}")
-
     # Set up the optimization.
     criterion = nn.CrossEntropyLoss()
 
@@ -229,47 +258,13 @@ if __name__ == "__main__":
     ]
 
     if with_dloss:
-        print("Using the diversity loss.")
         half_z_num = int(z_num / 2)
         odd_list = list(range(0, z_num - 1, 2)) + list_1
         even_list = list(range(1, z_num, 2)) + list_2
         if dloss_funtion == "features":
-            print(f"Diversity loss in feature space.")
+            alexnet_conv5 = load_net("alexnet_conv5")
 
-    if ini_y_method == "random":
-
-        print("Using random initialization of y.")
-
-    elif ini_y_method.startswith("one_hot"):
-
-        print("Using one hot initialization of y.")
-        save_metadata["one_hot"] = True
-        if resolution == 128:
-            embedding_name = weight_name + "_embedding.npy"
-            y_embedding = np.load(embedding_name)
-        else:
-            y_embedding = np.load("1000_embedding_array.npy")
-
-        y_embedding_torch = torch.from_numpy(y_embedding)
-        y_embeddings_clamped = torch.clamp(y_embedding_torch, min_clamp, max_clamp)
-
-    elif ini_y_method == "mean_random":
-
-        # Load mean as the initial value of y.
-        print("Using mean embedding vector to initialize y.")
-        if resolution == 128:
-            embedding_name = (
-                weight_path.split("/")[-1].split(".")[0] + "_embedding_mean.npy"
-            )
-            y_embedding = np.load(embedding_name)
-        else:
-            y_embedding = np.load("mean_1000_embedding.npy")
-
-        y_embedding_torch = torch.from_numpy(y_embedding)
-        y_mean_torch = torch.mean(y_embedding_torch, dim=0)
-
-    else:
-        raise ValueError("Please choose a method to initialize the y!!!")
+    print(f"BigGAN initialization time: {time.time() - start_time}")
 
     for target_class in target_list:
 
