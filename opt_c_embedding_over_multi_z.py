@@ -14,26 +14,22 @@ def slt_ini_method():
     if ini_y_method == "random":
         y_total = torch.randn((ini_y_num, 128)) * gaussian_var
 
-    elif ini_y_method == "one_hot":
-        (y_total, index_list) = slt_one_hot(ini_y_num, 10)
-
     elif ini_y_method == "mean_random":
         y_total = y_mean_torch.repeat(ini_y_num, 1)
         y_total += torch.randn((ini_y_num, 128)) * 0.1
+
+    elif ini_y_method == "one_hot":
+        (y_total, index_list) = slt_one_hot(ini_y_num, 10)
 
     return (y_total, index_list)
 
 
 def slt_one_hot(num_y, num_samples):
-    if resolution == 128:
-        embedding_name = weight_name + "_embedding.npy"
-        y_embedding = np.load(embedding_name)
-    else:
-        y_embedding = np.load("./1000_embedding_array.npy")
-
     y_embedding_torch = torch.from_numpy(y_embedding)
-    avg_list = []
+
     if ini_onehot_method == "top":
+
+        avg_list = []
         for i in range(1000):
 
             final_y = torch.clamp(y_embedding_torch[i], min_clamp, max_clamp)
@@ -54,7 +50,7 @@ def slt_one_hot(num_y, num_samples):
         avg_array = np.array(avg_list)
         sort_index = np.argsort(avg_array)
 
-        print(f"The top {num_y} guess:{sort_index[-num_y:]}")
+        print(f"The top {num_y} guesses: {sort_index[-num_y:]}")
 
         y_slt = y_embedding_torch[sort_index[-num_y:]]
         index_list = sort_index[-num_y:]
@@ -65,7 +61,7 @@ def slt_one_hot(num_y, num_samples):
         index_list = random_list
 
     elif ini_onehot_method == "origin":
-        print(f"The noise std is: {noise_std}.")
+        print(f"The noise std is: {noise_std}")
         y_slt = y_embedding_torch[target_class].unsqueeze(0).repeat(num_y, 1)
         y_slt += torch.randn((num_y, 128)) * noise_std
         index_list = [target_class] * num_y
@@ -109,10 +105,6 @@ def get_diversity_loss():
 
 
 def final_samples():
-    """Generate 30 random images based on an optimized y.
-
-    :return:
-    """
     dt = datetime.datetime.now()
     final_y = torch.clamp(ys, min_clamp, max_clamp)
     repeat_final_y = final_y.repeat(10, 1).to(device)
@@ -269,6 +261,11 @@ if __name__ == "__main__":
     }
     if ini_y_method == "one_hot":
         save_metadata["one_hot"] = True
+        if resolution == 128:
+            embedding_name = weight_name + "_embedding.npy"
+            y_embedding = np.load(embedding_name)
+        else:
+            y_embedding = np.load("./1000_embedding_array.npy")
 
     for target_class in target_list:
 
