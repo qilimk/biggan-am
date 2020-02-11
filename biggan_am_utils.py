@@ -113,21 +113,28 @@ def save_intermediate_data(plot_data, path):
 
 
 def parse_options():
-    parser = argparse.ArgumentParser(description="Optimizing the process with seed")
+    parser = argparse.ArgumentParser(description="Optimizing with seed.")
 
     parser.add_argument(
-        "--seed_z", type=int, default=0, help="Random seed for z to use"
+        "--seed_z", type=int, default=0, help="Random seed for z to use."
     )
 
     parser.add_argument(
-        "--ini_y_num", type=int, default=5, help="the number of initial y"
+        "--ini_y_num", type=int, default=5, help="The number of initial ys."
     )
 
     parser.add_argument(
         "--ini_y_method",
         type=str,
         default="random",
-        help="the methods to intialize the y: random/one_hot/mean_random",
+        help="The method to initialize the y: random/one_hot/mean_random.",
+    )
+
+    parser.add_argument(
+        "--ini_onehot_method",
+        type=str,
+        default="top",
+        help="The method to generate one hot classes: top/random.",
     )
 
     parser.add_argument("--lr", type=float, default=0.1, help="Initial learning rate")
@@ -136,90 +143,86 @@ def parse_options():
         "--dr",
         type=float,
         default=0.9,
-        help="Weight decay rate by using adam optimizer",
+        help="Weight decay rate used by the Adam optimizer",
     )
 
     parser.add_argument(
-        "--n_iters", type=int, default=100, help="the number of iterations"
+        "--n_iters", type=int, default=100, help="The number of iterations."
     )
 
-    parser.add_argument("--z_num", type=int, default=10, help="the number of z")
+    parser.add_argument("--z_num", type=int, default=10, help="The number of zs.")
 
     parser.add_argument(
-        "--steps_per_z", type=int, default=50, help="the number of iterations"
+        "--steps_per_z", type=int, default=50, help="The number of update steps per z."
     )
 
-    parser.add_argument("--cuda", type=int, default=0, help="the index of gpu3")
+    parser.add_argument("--cuda", type=int, default=0, help="The index of the GPU.")
 
     parser.add_argument(
-        "--model", type=str, default="alexnet", help="the classifier model"
+        "--model", type=str, default="alexnet", help="The classifier model."
     )
 
     parser.add_argument(
-        "--resolution", type=int, default=256, help="the resolution of BigGAN output"
+        "--resolution",
+        type=int,
+        default=256,
+        help="The resolution of the BigGAN output.",
     )
 
     parser.add_argument(
         "--gaussian_var",
         type=float,
         default=1.0,
-        help="The variance of gaussian distribution for random initialization ",
-    )
-
-    parser.add_argument(
-        "--experiment_name",
-        type=str,
-        default="E1",
-        help="program will produce the output folder based on experiment name.",
-    )
-
-    parser.add_argument(
-        "--ini_onehot_method",
-        type=str,
-        default="top",
-        help="the methods to generate one hot classes: top/random",
-    )
-
-    parser.add_argument(
-        "--with_dloss",
-        type=bool,
-        default=False,
-        help="add diversity loss to total loss function if True",
-    )
-
-    parser.add_argument(
-        "--dloss_funtion",
-        type=str,
-        default="softmax",
-        help="use different diversity loss functions which are softmax/pixelwise/features",
-    )
-
-    parser.add_argument(
-        "--alpha",
-        type=float,
-        default=0.1,
-        help="The coefficient of diversity loss term",
+        help="The variance of the Gaussian distribution used for random initialization.",
     )
 
     parser.add_argument(
         "--noise_std",
         type=float,
         default=0,
-        help="The std of gaussian add to one hot origin initialization.",
+        help="The standard deviation of the Gaussian used for one-hot origin initialization.",
+    )
+
+    parser.add_argument(
+        "--experiment_name",
+        type=str,
+        default="E1",
+        help="Experiment name - used for saving files.",
+    )
+
+    parser.add_argument(
+        "--with_dloss",
+        type=bool,
+        default=False,
+        help="Add diversity loss to total loss function.",
+    )
+
+    parser.add_argument(
+        "--dloss_funtion",
+        type=str,
+        default="softmax",
+        help="The diversity loss function: softmax/pixelwise/features.",
+    )
+
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=0.1,
+        help="The coefficient for the diversity loss term.",
     )
 
     parser.add_argument(
         "--weight_path",
         type=str,
-        default="pretrained_weights/E7_G_ema_138000_original.pth",
-        help="The std of gaussian add to one hot origin initialization.",
+        default="pretrained_weights/biggan_weights.pth",
+        help="The path for the pre-trained BigGAN weights.",
     )
 
     parser.add_argument(
         "--class_list",
         type=str,
         default="../head_50_random_class.txt",
-        help="class list to optimize",
+        help="List of classes to optimize.",
     )
 
     return parser.parse_args()
