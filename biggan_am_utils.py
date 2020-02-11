@@ -165,7 +165,7 @@ def parse_options():
     parser.add_argument(
         "--resolution",
         type=int,
-        default=256,
+        default=128,
         help="The resolution of the BigGAN output.",
     )
 
