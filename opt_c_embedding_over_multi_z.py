@@ -57,16 +57,10 @@ def slt_ini_method():
 
                 with torch.no_grad():
                     gan_image_tensor = G(final_z, repeat_final_y)
-                    if model == "inception_v3":
-                        final_image_tensor = nn.functional.interpolate(
-                            gan_image_tensor, size=299
-                        )
-                        (final_out, _) = eval_net(final_image_tensor)
-                    else:
-                        final_image_tensor = nn.functional.interpolate(
-                            gan_image_tensor, size=224
-                        )
-                        final_out = eval_net(final_image_tensor)
+                    final_image_tensor = nn.functional.interpolate(
+                        gan_image_tensor, size=224
+                    )
+                    final_out = eval_net(final_image_tensor)
 
                 final_probs = nn.functional.softmax(final_out, dim=1)
                 avg_prob_y = final_probs[:, target_class].mean().item()
@@ -207,14 +201,12 @@ if __name__ == "__main__":
     G = BigGAN.Generator(**config)
     G.load_state_dict(torch.load(weight_path), strict=False)
     G = G.to(device)
-    # G = nn.DataParallel(G).to(device)
     G.eval()
 
     net = load_net(model).to(device)
-    # net = nn.DataParallel(net).to(device)
     net.eval()
 
-    if (model in {"mit_alexnet", "mit_resnet18"}) or (model == "alexnet"):
+    if model in {"mit_alexnet", "mit_resnet18"}:
         eval_net = net
     else:
         eval_net = load_net("alexnet")
@@ -289,22 +281,11 @@ if __name__ == "__main__":
                     )
                     repeat_clamped_y = clamped_embedding.repeat(z_num, 1).to(device)
                     gan_image_tensor = G(z_total, repeat_clamped_y)
-
-                    if model == "inception_v3":
-                        total_image_tensor = nn.functional.interpolate(
-                            gan_image_tensor, size=299
-                        )
-                        (total_out, aux_out) = net(total_image_tensor)
-                        total_loss = criterion(total_out, labels) + criterion(
-                            aux_out, labels
-                        )
-
-                    else:
-                        total_image_tensor = nn.functional.interpolate(
-                            gan_image_tensor, size=224
-                        )
-                        total_out = net(total_image_tensor)
-                        total_loss = criterion(total_out, labels)
+                    total_image_tensor = nn.functional.interpolate(
+                        gan_image_tensor, size=224
+                    )
+                    total_out = net(total_image_tensor)
+                    total_loss = criterion(total_out, labels)
 
                     # Add diversity loss.
                     if with_dloss:
@@ -363,7 +344,6 @@ if __name__ == "__main__":
             with open(intermediate_data_save, "w") as f:
                 f.write(json_save)
 
-            save_intermediate_data(plot_data, intermediate_data_save)
             np.save(filename_y_save, y_save)
             np.save(filename_z_save, z_save)
 
