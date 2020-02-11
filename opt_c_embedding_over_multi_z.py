@@ -38,10 +38,16 @@ def slt_one_hot(num_y, num_samples):
 
             with torch.no_grad():
                 gan_image_tensor = G(final_z, repeat_final_y)
-                final_image_tensor = nn.functional.interpolate(
-                    gan_image_tensor, size=224
-                )
-                final_out = eval_net(final_image_tensor)
+                if model == "inception_v3":
+                    final_image_tensor = nn.functional.interpolate(
+                        gan_image_tensor, size=299
+                    )
+                    (final_out, _) = eval_net(final_image_tensor)
+                else:
+                    final_image_tensor = nn.functional.interpolate(
+                        gan_image_tensor, size=224
+                    )
+                    final_out = eval_net(final_image_tensor)
 
             final_probs = nn.functional.softmax(final_out, dim=1)
             avg_prob_y = final_probs[:, target_class].mean().item()
