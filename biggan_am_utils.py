@@ -194,7 +194,7 @@ def parse_options():
     )
 
     parser.add_argument(
-        "--dloss_funtion",
+        "--dloss_function",
         type=str,
         default="softmax",
         help="The diversity loss function: softmax/pixelwise/features.",
