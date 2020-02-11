@@ -1,18 +1,23 @@
 import argparse
-import datetime
-import json
 import os
 import torch
 import torch.nn as nn
 import torchvision.models as models
 
 from robustness import datasets, model_utils
-from user_constants import DATA_PATH_DICT
 
 dim_z_dict = {128: 120, 256: 140, 512: 128}
 attn_dict = {128: "64", 256: "128", 512: "64"}
 max_clamp_dict = {128: 0.83, 256: 0.61}
 min_clamp_dict = {128: -0.88, 256: -0.59}
+DATA_PATH_DICT = {
+    "CIFAR": "/path/tools/cifar",
+    "RestrictedImageNet": "/mnt/raid/qi/ILSVRC2012_img_train/ImageNet",
+    "ImageNet": "/path/tools/imagenet",
+    "H2Z": "/path/tools/horse2zebra",
+    "A2O": "/path/tools/apple2orange",
+    "S2W": "/path/tools/summer2winter_yosemite",
+}
 
 
 def get_config(resolution):
@@ -116,14 +121,14 @@ def parse_options():
     )
 
     parser.add_argument(
-        "--ini_y_num", type=int, default=3, help="The number of initial ys."
+        "--init_num", type=int, default=3, help="The number of initial embeddings."
     )
 
     parser.add_argument(
-        "--ini_y_method",
+        "--init_method",
         type=str,
         default="mean_random",
-        help="The method to initialize the y: random/one_hot/mean_random.",
+        help="The method to initialize the embedding: mean_random/class_top/class_random/class_target.",
     )
 
     parser.add_argument("--lr", type=float, default=0.1, help="Initial learning rate")

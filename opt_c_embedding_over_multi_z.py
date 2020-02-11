@@ -9,46 +9,37 @@ from torch import optim, nn
 from torchvision.utils import save_image
 
 
-def slt_ini_method():
+def get_initial_embeddings():
     index_list = []
+    embedding_dim = 128
 
-    if ini_y_method == "mean_random":
+    if resolution == 128:
+        embedding_name = weight_name + "_embedding.npy"
+        class_embeddings = np.load(embedding_name)
+    else:
+        class_embeddings = np.load("1000_embedding_array.npy")
 
-        if resolution == 128:
-            embedding_name = (
-                weight_path.split("/")[-1].split(".")[0] + "_embedding_mean.npy"
-            )
-            y_embedding = np.load(embedding_name)
-        else:
-            y_embedding = np.load("mean_1000_embedding.npy")
+    if init_method == "mean_random":
 
-        y_embedding_torch = torch.from_numpy(y_embedding)
-        y_mean_torch = torch.mean(y_embedding_torch, dim=0)
+        class_embeddings = torch.from_numpy(class_embeddings)
+        mean_class_embedding = torch.mean(class_embeddings, dim=0)
 
-        y_total = y_mean_torch.repeat(ini_y_num, 1)
-        y_total += torch.randn((ini_y_num, y_dim)) * 0.1
+        init_embeddings = mean_class_embedding.repeat(init_num, 1)
+        init_embeddings += torch.randn((init_num, embedding_dim)) * 0.1
 
-    elif ini_y_method.startswith("one_hot"):
+    elif init_method.startswith("class"):
 
-        if resolution == 128:
-            embedding_name = weight_name + "_embedding.npy"
-            y_embedding = np.load(embedding_name)
-        else:
-            y_embedding = np.load("1000_embedding_array.npy")
+        class_embeddings = torch.from_numpy(class_embeddings)
 
-        y_embedding_torch = torch.from_numpy(y_embedding)
-
-        num_y = ini_y_num
-
-        if ini_y_method.endswith("top"):
-            y_embeddings_clamped = torch.clamp(y_embedding_torch, min_clamp, max_clamp)
+        if init_method.endswith("top"):
+            class_embeddings_clamped = torch.clamp(class_embeddings, min_clamp, max_clamp)
 
             num_samples = 10
             avg_list = []
             for i in range(1000):
 
-                final_y = y_embeddings_clamped[i]
-                repeat_final_y = final_y.repeat(num_samples, 1)
+                final_embedding = class_embeddings_clamped[i]
+                repeat_final_y = final_embedding.repeat(num_samples, 1)
                 final_z = torch.randn((num_samples, dim_z), requires_grad=False)
 
                 with torch.no_grad():
@@ -65,30 +56,30 @@ def slt_ini_method():
             avg_array = np.array(avg_list)
             sort_index = np.argsort(avg_array)
 
-            print(f"The top {num_y} guesses: {sort_index[-num_y:]}")
+            print(f"The top {init_num} guesses: {sort_index[-init_num:]}")
 
-            y_total = y_embedding_torch[sort_index[-num_y:]]
-            index_list = sort_index[-num_y:]
+            init_embeddings = class_embeddings[sort_index[-init_num:]]
+            index_list = sort_index[-init_num:]
 
-        elif ini_y_method.endswith("random"):
-            random_list = random.sample(range(1000), num_y)
-            y_total = y_embedding_torch[random_list]
+        elif init_method.endswith("random"):
+            random_list = random.sample(range(1000), init_num)
+            init_embeddings = class_embeddings[random_list]
             index_list = random_list
 
-        elif ini_y_method.endswith("origin"):
+        elif init_method.endswith("target"):
             print(f"The noise std is: {noise_std}")
-            y_total = y_embedding_torch[target_class].unsqueeze(0).repeat(num_y, 1)
-            y_total += torch.randn((num_y, y_dim)) * noise_std
-            index_list = [target_class] * num_y
+            init_embeddings = class_embeddings[target_class].unsqueeze(0).repeat(init_num, 1)
+            init_embeddings += torch.randn((init_num, embedding_dim)) * noise_std
+            index_list = [target_class] * init_num
 
         else:
             raise ValueError("Please choose a method to generate the one-hot class.")
 
-    return (y_total, index_list)
+    return (init_embeddings, index_list)
 
 
 def get_diversity_loss():
-    denom = F.pairwise_distance(z_total[odd_list, :], z_total[even_list, :])
+    denom = F.pairwise_distance(zs[odd_list, :], zs[even_list, :])
 
     if dloss_function == "softmax":
 
@@ -121,8 +112,8 @@ def get_diversity_loss():
 
 if __name__ == "__main__":
     args = parse_options()
-    ini_y_num = args.ini_y_num
-    ini_y_method = args.ini_y_method
+    init_num = args.init_num
+    init_method = args.init_method
     seed_z = args.seed_z
     lr = args.lr
     dr = args.dr
@@ -138,7 +129,6 @@ if __name__ == "__main__":
     weight_path = args.weight_path
     weight_name = weight_path.split("/")[-1].split(".")[0]
     class_list = args.class_list
-    y_dim = 128
 
     target_list = []
     with open(class_list, "r") as t_list:
@@ -149,11 +139,9 @@ if __name__ == "__main__":
     max_clamp = max_clamp_dict[resolution]
     min_clamp = min_clamp_dict[resolution]
 
-    if ini_y_method == "random":
-        print("Using random initialization of y.")
-    elif ini_y_method.startswith("one_hot"):
+    if init_method.startswith("one_hot"):
         print("Using one hot initialization of y.")
-    elif ini_y_method == "mean_random":
+    elif init_method == "mean_random":
         print("Using mean embedding vector to initialize y.")
     else:
         raise ValueError("Please choose a method to initialize the y!!!")
@@ -179,7 +167,8 @@ if __name__ == "__main__":
     print("Loading the BigGAN generator model...")
     config = get_config(resolution)
     G = BigGAN.Generator(**config)
-    G.load_state_dict(torch.load(weight_path), strict=False)
+    biggan_weights = "G.pth" if resolution == 256 else "G_ema.pth"
+    G.load_state_dict(torch.load(f"{weight_path}/{biggan_weights}"), strict=False)
     G = G.to(device)
     G.eval()
 
@@ -196,9 +185,9 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
 
     state_z = torch.get_rng_state()
-    list_1 = list(range(0, z_num - 1, 2)) + [random.randint(0, 9) for p in range(0, 10)]
+    list_1 = list(range(0, z_num - 1, 2)) + [random.randint(0, 9) for p in range(10)]
     list_2 = list((np.array(range(1, z_num, 2)) + 4) % 20) + [
-        random.randint(10, 19) for p in range(0, 10)
+        random.randint(10, 19) for p in range(10)
     ]
 
     if with_dloss:
@@ -212,10 +201,10 @@ if __name__ == "__main__":
 
     for target_class in target_list:
 
-        (y_total, index_list) = slt_ini_method()
+        (init_embeddings, index_list) = get_initial_embeddings()
         labels = torch.LongTensor([target_class] * z_num).to(device)
 
-        for y_n in range(ini_y_num):
+        for init_embedding in init_embeddings:
 
             # Initialize optimization.
 
@@ -227,8 +216,8 @@ if __name__ == "__main__":
             step_index_list = []
             z_index_list = []
 
-            init_embedding = y_total[y_n].unsqueeze(0).to(device)
-            init_embedding.requires_grad_()
+            optim_embedding = init_embedding.unsqueeze(0).to(device)
+            optim_embedding.requires_grad_()
 
             dir_name = "results"
             os.makedirs(dir_name, exist_ok=True)
@@ -236,7 +225,7 @@ if __name__ == "__main__":
             filename_z_save = "opt_y"
             intermediate_data_save = "intermediate.json"
 
-            optimizer = optim.Adam([init_embedding], lr=lr, weight_decay=dr)
+            optimizer = optim.Adam([optim_embedding], lr=lr, weight_decay=dr)
 
             torch.set_rng_state(state_z)
 
@@ -244,8 +233,8 @@ if __name__ == "__main__":
             for epoch in range(n_iters):
 
                 # Sample a new batch of zs every loop.
-                z_total = torch.randn((z_num, dim_z), requires_grad=False).to(device)
-                z_save.append(z_total.cpu().numpy())
+                zs = torch.randn((z_num, dim_z), requires_grad=False).to(device)
+                z_save.append(zs.cpu().numpy())
 
                 for n in range(steps_per_z):
                     global_step_id += 1
@@ -253,10 +242,10 @@ if __name__ == "__main__":
                     optimizer.zero_grad()
 
                     clamped_embedding = torch.clamp(
-                        init_embedding, min_clamp, max_clamp
+                        optim_embedding, min_clamp, max_clamp
                     )
                     repeat_clamped_y = clamped_embedding.repeat(z_num, 1).to(device)
-                    gan_image_tensor = G(z_total, repeat_clamped_y)
+                    gan_image_tensor = G(zs, repeat_clamped_y)
                     total_image_tensor = nn.functional.interpolate(
                         gan_image_tensor, size=224
                     )
@@ -325,17 +314,18 @@ if __name__ == "__main__":
 
             # Save final samples.
             dt = datetime.datetime.now()
-            final_y = torch.clamp(init_embedding, min_clamp, max_clamp)
-            repeat_final_y = final_y.repeat(10, 1).to(device)
+            final_embedding = torch.clamp(optim_embedding, min_clamp, max_clamp)
+            repeat_final_embedding = final_embedding.repeat(10, 1).to(device)
             save_all = []
             sum_final_probs = 0
             torch.set_rng_state(state_z)
             for show_id in range(3):
                 final_z = torch.randn((10, dim_z), device=device, requires_grad=False)
                 with torch.no_grad():
-                    gan_image_tensor = G(final_z, repeat_final_y)
-                    final_image_tensor = nn.functional.interpolate(gan_image_tensor,
-                                                                   size=224)
+                    gan_image_tensor = G(final_z, repeat_final_embedding)
+                    final_image_tensor = nn.functional.interpolate(
+                        gan_image_tensor, size=224
+                    )
                     final_out = eval_net(final_image_tensor)
 
                 final_probs = nn.functional.softmax(final_out, dim=1)
