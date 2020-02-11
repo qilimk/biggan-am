@@ -15,10 +15,7 @@ def slt_ini_method():
         y_total = torch.randn((ini_y_num, 128)) * gaussian_var
 
     elif ini_y_method == "one_hot":
-        method = (
-            ini_onehot_method if ini_onehot_method in {"top", "random"} else "origin"
-        )
-        (y_total, index_list) = slt_one_hot(ini_y_num, 10, method)
+        (y_total, index_list) = slt_one_hot(ini_y_num, 10)
 
     elif ini_y_method == "mean_random":
         y_total = y_mean_torch.repeat(ini_y_num, 1)
@@ -27,16 +24,7 @@ def slt_ini_method():
     return (y_total, index_list)
 
 
-def slt_one_hot(num_y, num_samples, method):
-    """
-
-    :param num_y:
-    :param num_samples:
-    :param method:
-    :return:
-    """
-    avg_list = []
-
+def slt_one_hot(num_y, num_samples):
     if resolution == 128:
         embedding_name = weight_name + "_embedding.npy"
         y_embedding = np.load(embedding_name)
@@ -44,16 +32,20 @@ def slt_one_hot(num_y, num_samples, method):
         y_embedding = np.load("./1000_embedding_array.npy")
 
     y_embedding_torch = torch.from_numpy(y_embedding)
-    if method == "top":
-        for i in range(0, 1000):
+    avg_list = []
+    if ini_onehot_method == "top":
+        for i in range(1000):
 
             final_y = torch.clamp(y_embedding_torch[i], min_clamp, max_clamp)
             repeat_final_y = final_y.repeat(num_samples, 1)
             final_z = torch.randn((num_samples, dim_z), requires_grad=False)
 
-            gan_image_tensor = G(final_z, repeat_final_y)
-            final_image_tensor = nn.functional.interpolate(gan_image_tensor, size=224)
-            final_out = eval_net(final_image_tensor)
+            with torch.no_grad():
+                gan_image_tensor = G(final_z, repeat_final_y)
+                final_image_tensor = nn.functional.interpolate(
+                    gan_image_tensor, size=224
+                )
+                final_out = eval_net(final_image_tensor)
 
             final_probs = nn.functional.softmax(final_out, dim=1)
             avg_prob_y = final_probs[:, target_class].mean().item()
@@ -67,31 +59,31 @@ def slt_one_hot(num_y, num_samples, method):
         y_slt = y_embedding_torch[sort_index[-num_y:]]
         index_list = sort_index[-num_y:]
 
-    elif method == "random":
+    elif ini_onehot_method == "random":
         random_list = random.sample(range(0, 999), num_y)
         y_slt = y_embedding_torch[random_list]
         index_list = random_list
 
-    elif method == "origin":
+    elif ini_onehot_method == "origin":
         print(f"The noise std is: {noise_std}.")
         y_slt = y_embedding_torch[target_class].unsqueeze(0).repeat(num_y, 1)
         y_slt += torch.randn((num_y, 128)) * noise_std
         index_list = [target_class] * num_y
 
     else:
-        print(f"please choose one method to generate the one hot class.")
-        y_slt = 0
-        index_list = 0
+        raise ValueError("Please choose a method to generate the one-hot class.")
 
-    return y_slt, index_list
+    return (y_slt, index_list)
 
 
 def get_diversity_loss():
+    denom = F.pairwise_distance(z_total[odd_list, :], z_total[even_list, :])
+
     if dloss_funtion == "softmax":
 
         return -alpha * torch.sum(
             F.pairwise_distance(total_probs[odd_list, :], total_probs[even_list, :])
-            / F.pairwise_distance(z_total[odd_list, :], z_total[even_list, :])
+            / denom
         )
 
     elif dloss_funtion == "features":
@@ -102,7 +94,7 @@ def get_diversity_loss():
                 features_out[odd_list, :].view(half_z_num, -1),
                 features_out[even_list, :].view(half_z_num, -1),
             )
-            / F.pairwise_distance(z_total[odd_list, :], z_total[even_list, :])
+            / denom
         )
 
     else:
@@ -112,7 +104,7 @@ def get_diversity_loss():
                 total_image_tensor[odd_list, :].view(half_z_num, -1),
                 total_image_tensor[even_list, :].view(half_z_num, -1),
             )
-            / F.pairwise_distance(z_total[odd_list, :], z_total[even_list, :])
+            / denom
         )
 
 
@@ -130,9 +122,11 @@ def final_samples():
     for show_id in range(3):
 
         final_z = torch.randn((10, dim_z), device=device, requires_grad=False)
-        gan_image_tensor = G(final_z, repeat_final_y)
-        final_image_tensor = nn.functional.interpolate(gan_image_tensor, size=224)
-        final_out = eval_net(final_image_tensor)
+        with torch.no_grad():
+            gan_image_tensor = G(final_z, repeat_final_y)
+            final_image_tensor = nn.functional.interpolate(gan_image_tensor, size=224)
+            final_out = eval_net(final_image_tensor)
+
         final_probs = nn.functional.softmax(final_out, dim=1)
         avg_prob_y = final_probs[:, target_class].mean().item()
 
@@ -203,7 +197,7 @@ if __name__ == "__main__":
 
     # Set up cudnn.benchmark for free speed.
     torch.backends.cudnn.benchmark = True
-    device = "cuda"
+    device = "cuda:0"
     start_time = time.time()
 
     # Read the target classes file.
@@ -257,6 +251,7 @@ if __name__ == "__main__":
     save_metadata = {
         "experiment_name": experiment_name,
         "model": model,
+        "index_class": -1,
         "ini_y_method": ini_y_method,
         "ini_onehot_method": ini_onehot_method,
         "n_iters": n_iters,
@@ -273,21 +268,17 @@ if __name__ == "__main__":
     for target_class in target_list:
 
         save_metadata["target_class"] = target_class
-        y_total, index_list = slt_ini_method()
+        (y_total, index_list) = slt_ini_method()
         labels = torch.LongTensor([target_class] * z_num).to(device)
 
         for y_n in range(ini_y_num):
 
-            # Initial optimization and create output folder.
+            # Initialize optimization and create output folder.
 
             global_step_id = 0
-            y_save, z_save = [], []
-            target_prob_list, target_index_list, top1_prob_list, top1_index_list = (
-                [],
-                [],
-                [],
-                [],
-            )
+            (y_save, z_save) = ([], [])
+            (target_prob_list, target_index_list) = ([], [])
+            (top1_prob_list, top1_index_list) = ([], [])
             iters_no_list = []
             step_index_list = []
             z_index_list = []
@@ -295,7 +286,9 @@ if __name__ == "__main__":
             ys = y_total[y_n].unsqueeze(0).to(device)
             ys.requires_grad_()
 
-            save_metadata["index_class"] = index_list[y_n]
+            if ini_y_method == "one_hot":
+                save_metadata["index_class"] = index_list[y_n]
+
             (
                 dir_name,
                 filename_y_save,
@@ -304,8 +297,6 @@ if __name__ == "__main__":
             ) = save_files(**save_metadata)
 
             optimizer = optim.Adam([ys], lr=lr, weight_decay=dr)
-            clamped_y = torch.clamp(ys, min_clamp, max_clamp)
-            repeat_clamped_y = clamped_y.repeat(z_num, 1).to(device)
 
             torch.set_rng_state(state_z)
 
@@ -323,6 +314,8 @@ if __name__ == "__main__":
 
                     optimizer.zero_grad()
 
+                    clamped_y = torch.clamp(ys, min_clamp, max_clamp)
+                    repeat_clamped_y = clamped_y.repeat(z_num, 1).to(device)
                     gan_image_tensor = G(z_total, repeat_clamped_y)
 
                     if model == "inception_v3":
@@ -333,12 +326,12 @@ if __name__ == "__main__":
                         total_loss = criterion(total_out, labels) + criterion(
                             aux_out, labels
                         )
+
                     else:
                         total_image_tensor = nn.functional.interpolate(
                             gan_image_tensor, size=224
                         )
                         total_out = net(total_image_tensor)
-
                         total_loss = criterion(total_out, labels)
 
                     total_probs = nn.functional.softmax(total_out, dim=1)
@@ -354,11 +347,8 @@ if __name__ == "__main__":
                     total_loss.backward()
                     optimizer.step()
 
-                    avg_prob_y = total_probs[:, target_class].mean().item()
-
                     (top1_prob, top1_index) = torch.max(total_probs, 1)
                     target_prob = total_probs[:, target_class]
-
                     for z_index in range(z_num):
                         z_index_list.append(z_index)
                         iters_no_list.append(epoch)
@@ -376,9 +366,11 @@ if __name__ == "__main__":
 
                     y_save.append(clamped_y.detach().cpu().numpy())
 
+                    avg_prob_y = total_probs[:, target_class].mean().item()
                     print(
                         f"epoch: {epoch:0=5d}\tstep: {n:0=5d}\tavg_prob:{avg_prob_y:.4f}"
                     )
+
                     output_image_path = f"{dir_name}/opt_{model}_y_over_z_iter_"
                     output_image_path += f"{global_step_id:0=7d}_ylr_{lr}_target_"
                     output_image_path += f"{target_class:0=3d}_epoch_{epoch:0=5d}_"
