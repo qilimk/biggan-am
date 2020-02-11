@@ -89,7 +89,7 @@ def load_net(model_name):
         return models.alexnet(pretrained=True).features
 
     elif model_name == "inception_v3":
-        # Modified the original file in torchvision/models/inception.py !!!
+        # Modified the original file in torchvision/models/inception.py!!!
         return models.inception_v3(pretrained=True)
 
     elif model_name == "mit_alexnet":
