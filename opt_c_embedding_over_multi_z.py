@@ -196,7 +196,6 @@ if __name__ == "__main__":
     # Set up cudnn.benchmark for free speed.
     torch.backends.cudnn.benchmark = True
     device = "cuda:0"
-    start_time = time.time()
 
     # Read the target classes file.
     target_list = []
@@ -212,6 +211,8 @@ if __name__ == "__main__":
     min_clamp = min_clamp_dict[resolution]
 
     # Load the models.
+    start_time = time.time()
+
     print("Loading the BigGAN generator model...")
     config = get_config(resolution)
     G = BigGAN.Generator(**config)

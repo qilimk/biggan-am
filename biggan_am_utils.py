@@ -214,7 +214,7 @@ def parse_options():
     parser.add_argument(
         "--weight_path",
         type=str,
-        default="pretrained_weights/biggan_weights.pth",
+        default="pretrained_weights/138k/G_ema.pth",
         help="The path for the pre-trained BigGAN weights.",
     )
 

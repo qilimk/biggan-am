@@ -23,7 +23,8 @@ Download the pre-trained BigGAN model weights (see [here](https://stackoverflow.
 cd biggan-am/pretrained_weights
 fileid="1nAle7FCVFZdix2--ks0r5JBkFnKw8ctW"
 curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=${fileid}" > /dev/null
-curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=${fileid}" -o biggan_weights.pth
+curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=${fileid}" -o biggan_weights.zip
+unzip biggan_weights.zip
 ```
 
 * Python 3.6
