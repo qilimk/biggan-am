@@ -12,11 +12,7 @@ from torchvision.utils import save_image
 def slt_ini_method():
     index_list = []
 
-    if ini_y_method == "random":
-
-        y_total = torch.randn((ini_y_num, 128)) * gaussian_var
-
-    elif ini_y_method == "mean_random":
+    if ini_y_method == "mean_random":
 
         if resolution == 128:
             embedding_name = (
@@ -30,7 +26,7 @@ def slt_ini_method():
         y_mean_torch = torch.mean(y_embedding_torch, dim=0)
 
         y_total = y_mean_torch.repeat(ini_y_num, 1)
-        y_total += torch.randn((ini_y_num, 128)) * 0.1
+        y_total += torch.randn((ini_y_num, y_dim)) * 0.1
 
     elif ini_y_method.startswith("one_hot"):
 
@@ -82,7 +78,7 @@ def slt_ini_method():
         elif ini_y_method.endswith("origin"):
             print(f"The noise std is: {noise_std}")
             y_total = y_embedding_torch[target_class].unsqueeze(0).repeat(num_y, 1)
-            y_total += torch.randn((num_y, 128)) * noise_std
+            y_total += torch.randn((num_y, y_dim)) * noise_std
             index_list = [target_class] * num_y
 
         else:
@@ -136,7 +132,6 @@ if __name__ == "__main__":
     model = args.model
     resolution = args.resolution
     gaussian_var = args.gaussian_var
-    experiment_name = args.experiment_name
     with_dloss = args.with_dloss
     alpha = args.alpha
     dloss_function = args.dloss_function
@@ -144,6 +139,7 @@ if __name__ == "__main__":
     weight_path = args.weight_path
     weight_name = weight_path.split("/")[-1].split(".")[0]
     class_list = args.class_list
+    y_dim = 128
 
     target_list = []
     with open(class_list, "r") as t_list:
@@ -155,7 +151,6 @@ if __name__ == "__main__":
     min_clamp = min_clamp_dict[resolution]
 
     save_metadata = {
-        "experiment_name": experiment_name,
         "model": model,
         "index_class": -1,
         "ini_y_method": ini_y_method,

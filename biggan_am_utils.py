@@ -116,13 +116,13 @@ def parse_options():
     )
 
     parser.add_argument(
-        "--ini_y_num", type=int, default=5, help="The number of initial ys."
+        "--ini_y_num", type=int, default=3, help="The number of initial ys."
     )
 
     parser.add_argument(
         "--ini_y_method",
         type=str,
-        default="random",
+        default="mean_random",
         help="The method to initialize the y: random/one_hot/mean_random.",
     )
 
@@ -136,13 +136,13 @@ def parse_options():
     )
 
     parser.add_argument(
-        "--n_iters", type=int, default=100, help="The number of iterations."
+        "--n_iters", type=int, default=10, help="The number of iterations."
     )
 
     parser.add_argument("--z_num", type=int, default=10, help="The number of zs.")
 
     parser.add_argument(
-        "--steps_per_z", type=int, default=50, help="The number of update steps per z."
+        "--steps_per_z", type=int, default=20, help="The number of update steps per z."
     )
 
     parser.add_argument("--cuda", type=int, default=0, help="The index of the GPU.")
@@ -154,29 +154,15 @@ def parse_options():
     parser.add_argument(
         "--resolution",
         type=int,
-        default=128,
+        default=256,
         help="The resolution of the BigGAN output.",
-    )
-
-    parser.add_argument(
-        "--gaussian_var",
-        type=float,
-        default=1.0,
-        help="The variance of the Gaussian distribution used for random initialization.",
     )
 
     parser.add_argument(
         "--noise_std",
         type=float,
-        default=0,
+        default=0.1,
         help="The standard deviation of the Gaussian used for one-hot origin initialization.",
-    )
-
-    parser.add_argument(
-        "--experiment_name",
-        type=str,
-        default="E1",
-        help="Experiment name - used for saving files.",
     )
 
     parser.add_argument(
