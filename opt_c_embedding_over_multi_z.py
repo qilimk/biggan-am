@@ -1,4 +1,5 @@
 import BigGAN
+import json
 import numpy as np
 import random
 import time
@@ -32,7 +33,9 @@ def get_initial_embeddings():
         class_embeddings = torch.from_numpy(class_embeddings)
 
         if init_method.endswith("top"):
-            class_embeddings_clamped = torch.clamp(class_embeddings, min_clamp, max_clamp)
+            class_embeddings_clamped = torch.clamp(
+                class_embeddings, min_clamp, max_clamp
+            )
 
             num_samples = 10
             avg_list = []
@@ -50,8 +53,8 @@ def get_initial_embeddings():
                     final_out = eval_net(final_image_tensor)
 
                 final_probs = nn.functional.softmax(final_out, dim=1)
-                avg_prob_y = final_probs[:, target_class].mean().item()
-                avg_list.append(avg_prob_y)
+                avg_target_prob = final_probs[:, target_class].mean().item()
+                avg_list.append(avg_target_prob)
 
             avg_array = np.array(avg_list)
             sort_index = np.argsort(avg_array)
@@ -68,7 +71,9 @@ def get_initial_embeddings():
 
         elif init_method.endswith("target"):
             print(f"The noise std is: {noise_std}")
-            init_embeddings = class_embeddings[target_class].unsqueeze(0).repeat(init_num, 1)
+            init_embeddings = (
+                class_embeddings[target_class].unsqueeze(0).repeat(init_num, 1)
+            )
             init_embeddings += torch.randn((init_num, embedding_dim)) * noise_std
             index_list = [target_class] * init_num
 
@@ -90,7 +95,7 @@ def get_diversity_loss():
 
     elif dloss_function == "features":
 
-        features_out = alexnet_conv5(total_image_tensor)
+        features_out = alexnet_conv5(resized_images_tensor)
         return -alpha * torch.sum(
             F.pairwise_distance(
                 features_out[odd_list, :].view(half_z_num, -1),
@@ -103,8 +108,8 @@ def get_diversity_loss():
 
         return -alpha * torch.sum(
             F.pairwise_distance(
-                total_image_tensor[odd_list, :].view(half_z_num, -1),
-                total_image_tensor[even_list, :].view(half_z_num, -1),
+                resized_images_tensor[odd_list, :].view(half_z_num, -1),
+                resized_images_tensor[even_list, :].view(half_z_num, -1),
             )
             / denom
         )
@@ -243,12 +248,14 @@ if __name__ == "__main__":
                     clamped_embedding = torch.clamp(
                         optim_embedding, min_clamp, max_clamp
                     )
-                    repeat_clamped_y = clamped_embedding.repeat(z_num, 1).to(device)
-                    gan_image_tensor = G(zs, repeat_clamped_y)
-                    total_image_tensor = nn.functional.interpolate(
-                        gan_image_tensor, size=224
+                    repeat_clamped_embedding = clamped_embedding.repeat(z_num, 1).to(
+                        device
                     )
-                    total_out = net(total_image_tensor)
+                    gan_images_tensor = G(zs, repeat_clamped_embedding)
+                    resized_images_tensor = nn.functional.interpolate(
+                        gan_images_tensor, size=224
+                    )
+                    total_out = net(resized_images_tensor)
                     total_loss = criterion(total_out, labels)
 
                     # Add diversity loss.
@@ -279,16 +286,16 @@ if __name__ == "__main__":
 
                     y_save.append(clamped_embedding.detach().cpu().numpy())
 
-                    avg_prob_y = total_probs[:, target_class].mean().item()
+                    avg_target_prob = total_probs[:, target_class].mean().item()
                     print(
-                        f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\tavg_prob:{avg_prob_y:.4f}"
+                        f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\tavg_prob:{avg_target_prob:.4f}"
                     )
 
                     output_image_path = f"{dir_name}/{global_step_id:0=7d}.jpg"
 
                     # Only show 10 images per row.
                     save_image(
-                        gan_image_tensor, output_image_path, normalize=True, nrow=10
+                        gan_images_tensor, output_image_path, normalize=True, nrow=10
                     )
 
                     torch.cuda.empty_cache()
@@ -312,26 +319,23 @@ if __name__ == "__main__":
             np.save(filename_z_save, z_save)
 
             # Save final samples.
-            dt = datetime.datetime.now()
             final_embedding = torch.clamp(optim_embedding, min_clamp, max_clamp)
             repeat_final_embedding = final_embedding.repeat(10, 1).to(device)
             save_all = []
-            sum_final_probs = 0
             torch.set_rng_state(state_z)
             for show_id in range(3):
                 final_z = torch.randn((10, dim_z), device=device, requires_grad=False)
                 with torch.no_grad():
-                    gan_image_tensor = G(final_z, repeat_final_embedding)
-                    final_image_tensor = nn.functional.interpolate(
-                        gan_image_tensor, size=224
+                    gan_images_tensor = G(final_z, repeat_final_embedding)
+                    final_images_tensor = nn.functional.interpolate(
+                        gan_images_tensor, size=224
                     )
-                    final_out = eval_net(final_image_tensor)
+                    final_out = eval_net(final_images_tensor)
 
                 final_probs = nn.functional.softmax(final_out, dim=1)
-                avg_prob_y = final_probs[:, target_class].mean().item()
+                avg_target_prob = final_probs[:, target_class].mean().item()
 
-                save_all.append(gan_image_tensor)
-                sum_final_probs += avg_prob_y
+                save_all.append(gan_images_tensor)
 
             final_image_path = f"{dir_name}/final.jpg"
             save_all = torch.cat(save_all, dim=0)
