@@ -130,13 +130,6 @@ def parse_options():
         help="The method to initialize the y: random/one_hot/mean_random.",
     )
 
-    parser.add_argument(
-        "--ini_onehot_method",
-        type=str,
-        default="top",
-        help="The method to generate one hot classes: top/random.",
-    )
-
     parser.add_argument("--lr", type=float, default=0.1, help="Initial learning rate")
 
     parser.add_argument(
@@ -234,7 +227,6 @@ def save_files(
     target_class,
     index_class,
     ini_y_method,
-    ini_onehot_method,
     one_hot,
     n_iters,
     z_num,
@@ -244,13 +236,10 @@ def save_files(
     dloss_function,
     seed_z,
 ):
-    # Create the output folder
+    # Create the output folder.
     dt = datetime.datetime.now()
     dir_name = f"{experiment_name}_{model}_opt_y_over_z/opt_y_multi_z_target_"
     dir_name += f"{target_class:0=3d}_optmethod_{ini_y_method}_"
-    if one_hot:
-        dir_name += f"{ini_onehot_method}_"
-
     dir_name += f"iter_{n_iters:0=3d}_znum_{z_num:0=3d}_optnum_{steps_per_z:0=3d}_"
     dir_name += f"lr_{lr:.6f}_alpha_{alpha:.3f}_dloss_funtion_{dloss_function}_"
     dir_name += f"{dt:%m%d%H%M%S}"

@@ -18,7 +18,7 @@ def slt_ini_method():
         y_total = y_mean_torch.repeat(ini_y_num, 1)
         y_total += torch.randn((ini_y_num, 128)) * 0.1
 
-    elif ini_y_method == "one_hot":
+    elif ini_y_method.startswith("one_hot"):
         (y_total, index_list) = slt_one_hot(ini_y_num, 10)
 
     return (y_total, index_list)
@@ -27,7 +27,7 @@ def slt_ini_method():
 def slt_one_hot(num_y, num_samples):
     y_embedding_torch = torch.from_numpy(y_embedding)
 
-    if ini_onehot_method == "top":
+    if ini_y_method.endswith("top"):
 
         avg_list = []
         for i in range(1000):
@@ -61,12 +61,12 @@ def slt_one_hot(num_y, num_samples):
         y_slt = y_embedding_torch[sort_index[-num_y:]]
         index_list = sort_index[-num_y:]
 
-    elif ini_onehot_method == "random":
+    elif ini_y_method.endswith("random"):
         random_list = random.sample(range(0, 1000), num_y)
         y_slt = y_embedding_torch[random_list]
         index_list = random_list
 
-    elif ini_onehot_method == "origin":
+    elif ini_y_method.endswith("origin"):
         print(f"The noise std is: {noise_std}")
         y_slt = y_embedding_torch[target_class].unsqueeze(0).repeat(num_y, 1)
         y_slt += torch.randn((num_y, 128)) * noise_std
@@ -155,7 +155,6 @@ if __name__ == "__main__":
     resolution = args.resolution
     gaussian_var = args.gaussian_var
     experiment_name = args.experiment_name
-    ini_onehot_method = args.ini_onehot_method
     with_dloss = args.with_dloss
     alpha = args.alpha
     dloss_funtion = args.dloss_funtion
@@ -164,15 +163,35 @@ if __name__ == "__main__":
     weight_name = weight_path.split("/")[-1].split(".")[0]
     class_list = args.class_list
 
+    save_metadata = {
+        "experiment_name": experiment_name,
+        "model": model,
+        "index_class": -1,
+        "ini_y_method": ini_y_method,
+        "n_iters": n_iters,
+        "z_num": z_num,
+        "steps_per_z": steps_per_z,
+        "lr": lr,
+        "alpha": alpha,
+        "dloss_function": dloss_funtion,
+        "seed_z": seed_z,
+    }
+
     if ini_y_method == "random":
         print("Using random initialization of y.")
-    elif ini_y_method == "one_hot":
+    elif ini_y_method.startswith("one_hot"):
         print("Using one hot initialization of y.")
+        save_metadata["one_hot"] = True
+        if resolution == 128:
+            embedding_name = weight_name + "_embedding.npy"
+            y_embedding = np.load(embedding_name)
+        else:
+            y_embedding = np.load("1000_embedding_array.npy")
+
     elif ini_y_method == "mean_random":
 
         # Load mean as the initial value of y.
         print("Using mean embedding vector to initialize y.")
-        # Load mean as the initial value of y.
         if resolution == 128:
             embedding_name = (
                 weight_path.split("/")[-1].split(".")[0] + "_embedding_mean.npy"
@@ -252,28 +271,6 @@ if __name__ == "__main__":
         if dloss_funtion == "features":
             print(f"Diversity loss in feature space.")
 
-    save_metadata = {
-        "experiment_name": experiment_name,
-        "model": model,
-        "index_class": -1,
-        "ini_y_method": ini_y_method,
-        "ini_onehot_method": ini_onehot_method,
-        "n_iters": n_iters,
-        "z_num": z_num,
-        "steps_per_z": steps_per_z,
-        "lr": lr,
-        "alpha": alpha,
-        "dloss_function": dloss_funtion,
-        "seed_z": seed_z,
-    }
-    if ini_y_method == "one_hot":
-        save_metadata["one_hot"] = True
-        if resolution == 128:
-            embedding_name = weight_name + "_embedding.npy"
-            y_embedding = np.load(embedding_name)
-        else:
-            y_embedding = np.load("1000_embedding_array.npy")
-
     for target_class in target_list:
 
         save_metadata["target_class"] = target_class
@@ -282,7 +279,7 @@ if __name__ == "__main__":
 
         for y_n in range(ini_y_num):
 
-            # Initialize optimization and create output folder.
+            # Initialize optimization.
 
             global_step_id = 0
             (y_save, z_save) = ([], [])
@@ -295,7 +292,7 @@ if __name__ == "__main__":
             ys = y_total[y_n].unsqueeze(0).to(device)
             ys.requires_grad_()
 
-            if ini_y_method == "one_hot":
+            if ini_y_method.startswith("one_hot"):
                 save_metadata["index_class"] = index_list[y_n]
 
             (
@@ -374,7 +371,7 @@ if __name__ == "__main__":
 
                     avg_prob_y = total_probs[:, target_class].mean().item()
                     print(
-                        f"epoch: {epoch:0=5d}\tstep: {n:0=5d}\tavg_prob:{avg_prob_y:.4f}"
+                        f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\tavg_prob:{avg_prob_y:.4f}"
                     )
 
                     output_image_path = f"{dir_name}/opt_{model}_y_over_z_iter_"
