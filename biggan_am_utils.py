@@ -230,7 +230,6 @@ def save_files(
     target_class,
     index_class,
     ini_y_method,
-    one_hot,
     n_iters,
     z_num,
     steps_per_z,
@@ -251,7 +250,7 @@ def save_files(
         os.makedirs(dir_name)
 
     file_extent = f"target_{target_class:0=3d}_"
-    if one_hot:
+    if ini_y_method.startswith("one_hot"):
         file_extent += f"onehot_{index_class:0=3d}_"
 
     file_extent += f"iter_{n_iters:0=3d}_znum_{z_num:0=3d}_optnum_{steps_per_z:0=3d}_"

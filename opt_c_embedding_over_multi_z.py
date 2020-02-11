@@ -131,7 +131,7 @@ def get_diversity_loss():
 
 def final_samples():
     dt = datetime.datetime.now()
-    final_y = torch.clamp(ys, min_clamp, max_clamp)
+    final_y = torch.clamp(init_embedding, min_clamp, max_clamp)
     repeat_final_y = final_y.repeat(10, 1).to(device)
     save_all = []
     sum_final_probs = 0
@@ -286,8 +286,8 @@ if __name__ == "__main__":
             step_index_list = []
             z_index_list = []
 
-            ys = y_total[y_n].unsqueeze(0).to(device)
-            ys.requires_grad_()
+            init_embedding = y_total[y_n].unsqueeze(0).to(device)
+            init_embedding.requires_grad_()
 
             if ini_y_method.startswith("one_hot"):
                 save_metadata["index_class"] = index_list[y_n]
@@ -299,7 +299,7 @@ if __name__ == "__main__":
                 intermediate_data_save,
             ) = save_files(**save_metadata)
 
-            optimizer = optim.Adam([ys], lr=lr, weight_decay=dr)
+            optimizer = optim.Adam([init_embedding], lr=lr, weight_decay=dr)
 
             torch.set_rng_state(state_z)
 
@@ -317,8 +317,8 @@ if __name__ == "__main__":
 
                     optimizer.zero_grad()
 
-                    clamped_y = torch.clamp(ys, min_clamp, max_clamp)
-                    repeat_clamped_y = clamped_y.repeat(z_num, 1).to(device)
+                    clamped_embedding = torch.clamp(init_embedding, min_clamp, max_clamp)
+                    repeat_clamped_y = clamped_embedding.repeat(z_num, 1).to(device)
                     gan_image_tensor = G(z_total, repeat_clamped_y)
 
                     if model == "inception_v3":
@@ -364,7 +364,7 @@ if __name__ == "__main__":
                             int(top1_index[z_index].cpu().detach().numpy())
                         )
 
-                    y_save.append(clamped_y.detach().cpu().numpy())
+                    y_save.append(clamped_embedding.detach().cpu().numpy())
 
                     avg_prob_y = total_probs[:, target_class].mean().item()
                     print(
