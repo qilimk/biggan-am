@@ -237,11 +237,12 @@ if __name__ == "__main__":
     config = get_config(resolution)
     G = BigGAN.Generator(**config)
     G.load_state_dict(torch.load(weight_path), strict=False)
-    G = nn.DataParallel(G).to(device)
+    G = G.to(device)
+    # G = nn.DataParallel(G).to(device)
     G.eval()
 
-    net = load_net(model)
-    net = nn.DataParallel(net).to(device)
+    net = load_net(model).to(device)
+    # net = nn.DataParallel(net).to(device)
     net.eval()
 
     if (model in {"mit_alexnet", "mit_resnet18"}) or (model == "alexnet"):
@@ -292,12 +293,11 @@ if __name__ == "__main__":
             if ini_y_method.startswith("one_hot"):
                 save_metadata["index_class"] = index_list[y_n]
 
-            (
-                dir_name,
-                filename_y_save,
-                filename_z_save,
-                intermediate_data_save,
-            ) = save_files(**save_metadata)
+            dir_name = "results"
+            os.makedirs(dir_name, exist_ok=True)
+            filename_y_save = "opt_y"
+            filename_z_save = "opt_y"
+            intermediate_data_save = "intermediate.json"
 
             optimizer = optim.Adam([init_embedding], lr=lr, weight_decay=dr)
 
@@ -307,9 +307,7 @@ if __name__ == "__main__":
             for epoch in range(n_iters):
 
                 # Sample a new batch of zs every loop.
-                z_total = torch.randn(
-                    (z_num, dim_z), device=device, requires_grad=False
-                )
+                z_total = torch.randn((z_num, dim_z), requires_grad=False).to(device)
                 z_save.append(z_total.cpu().numpy())
 
                 for n in range(steps_per_z):
@@ -317,7 +315,9 @@ if __name__ == "__main__":
 
                     optimizer.zero_grad()
 
-                    clamped_embedding = torch.clamp(init_embedding, min_clamp, max_clamp)
+                    clamped_embedding = torch.clamp(
+                        init_embedding, min_clamp, max_clamp
+                    )
                     repeat_clamped_y = clamped_embedding.repeat(z_num, 1).to(device)
                     gan_image_tensor = G(z_total, repeat_clamped_y)
 
@@ -337,8 +337,6 @@ if __name__ == "__main__":
                         total_out = net(total_image_tensor)
                         total_loss = criterion(total_out, labels)
 
-                    total_probs = nn.functional.softmax(total_out, dim=1)
-
                     # Add diversity loss.
                     if with_dloss:
                         diversity_loss = get_diversity_loss()
@@ -347,6 +345,7 @@ if __name__ == "__main__":
                     total_loss.backward()
                     optimizer.step()
 
+                    total_probs = nn.functional.softmax(total_out, dim=1)
                     (top1_prob, top1_index) = torch.max(total_probs, 1)
                     target_prob = total_probs[:, target_class]
                     for z_index in range(z_num):
@@ -371,11 +370,7 @@ if __name__ == "__main__":
                         f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\tavg_prob:{avg_prob_y:.4f}"
                     )
 
-                    output_image_path = f"{dir_name}/opt_{model}_y_over_z_iter_"
-                    output_image_path += f"{global_step_id:0=7d}_ylr_{lr}_target_"
-                    output_image_path += f"{target_class:0=3d}_epoch_{epoch:0=5d}_"
-                    output_image_path += f"zidx_{0:0=2d}_yiters_{n:0=2d}_avgprob_"
-                    output_image_path += f"{avg_prob_y:.3f}.jpg"
+                    output_image_path = f"{dir_name}/{global_step_id:0=7d}.jpg"
 
                     # Only show 10 images per row.
                     save_image(
