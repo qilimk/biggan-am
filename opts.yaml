@@ -1,0 +1,17 @@
+init_num: 3
+init_method: "mean"  # "mean", "top", "random", or "target".
+seed_z: 0
+lr: 0.1
+dr: 0.9
+n_iters: 10
+z_num: 10
+steps_per_z: 20
+model: "alexnet"
+resolution: 256
+alpha: 0.1
+dloss_function: "softmax"  # "", "softmax", "pixelwise", or "features".
+noise_std: 0.1
+weights_path: "pretrained_weights/138k"
+target_class: 13
+intermediate_dir: ""
+final_dir: "final"
