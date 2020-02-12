@@ -238,9 +238,16 @@ if __name__ == "__main__":
 
     print(f"BigGAN initialization time: {time.time() - start_time}")
 
-    # Set up the optimization.
-    criterion = nn.CrossEntropyLoss()
-    state_z = torch.get_rng_state()
+    # Set up optimization.
+    intermediate_dir = opts["intermediate_dir"]
+    if intermediate_dir:
+        print(f"Saving intermediate samples in {intermediate_dir}.")
+        os.makedirs(intermediate_dir, exist_ok=True)
+
+    final_dir = opts["final"]
+    if final_dir:
+        print(f"Saving final samples in {final_dir}.")
+        os.makedirs(final_dir, exist_ok=True)
 
     init_num = opts["init_num"]
     dim_z = dim_z_dict[resolution]
@@ -249,15 +256,10 @@ if __name__ == "__main__":
 
     target_class = opts["target_class"]
     (init_embeddings, index_list) = get_initial_embeddings()
+
+    criterion = nn.CrossEntropyLoss()
     labels = torch.LongTensor([target_class] * z_num).to(device)
-
-    intermediate_dir = opts["intermediate_dir"]
-    if intermediate_dir:
-        os.makedirs(intermediate_dir, exist_ok=True)
-
-    final_dir = opts["final"]
-    if final_dir:
-        os.makedirs(final_dir, exist_ok=True)
+    state_z = torch.get_rng_state()
 
     for (embedding_idx, init_embedding) in enumerate(init_embeddings):
         embedding_idx = str(embedding_idx).zfill(2)
