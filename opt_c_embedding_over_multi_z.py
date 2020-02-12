@@ -236,6 +236,8 @@ if __name__ == "__main__":
         alexnet_conv5 = load_net("alexnet_conv5")
         alexnet_conv5.eval()
 
+    print(f"BigGAN initialization time: {time.time() - start_time}")
+
     # Set up the optimization.
     criterion = nn.CrossEntropyLoss()
     state_z = torch.get_rng_state()
@@ -244,8 +246,6 @@ if __name__ == "__main__":
     dim_z = dim_z_dict[resolution]
     max_clamp = max_clamp_dict[resolution]
     min_clamp = min_clamp_dict[resolution]
-
-    print(f"BigGAN initialization time: {time.time() - start_time}")
 
     target_class = opts["target_class"]
     (init_embeddings, index_list) = get_initial_embeddings()
