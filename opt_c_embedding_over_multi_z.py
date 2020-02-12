@@ -78,9 +78,7 @@ def get_diversity_loss(zs, pred_probs, resized_images_tensor):
     if dloss_function == "softmax":
 
         num = torch.sum(
-            F.pairwise_distance(
-                pred_probs[odd_list, :], pred_probs[even_list, :]
-            )
+            F.pairwise_distance(pred_probs[odd_list, :], pred_probs[even_list, :])
         )
 
     elif dloss_function == "features":
@@ -134,7 +132,10 @@ def optimize_embedding():
             pred_probs = nn.functional.softmax(pred_logits, dim=1)
 
             if dloss_function:
-                loss += -opts["alpha"] * get_diversity_loss()
+                diversity_loss = get_diversity_loss(
+                    zs, pred_probs, resized_images_tensor
+                )
+                loss += -opts["alpha"] * diversity_loss
 
             loss.backward()
             optimizer.step()
@@ -232,7 +233,7 @@ if __name__ == "__main__":
     if model in {"mit_alexnet", "mit_resnet18", "alexnet"}:
         eval_net = net
     else:
-        eval_net = load_net("alexnet")
+        eval_net = load_net("alexnet").to(device)
         eval_net.eval()
 
     if dloss_function == "features":
@@ -247,7 +248,7 @@ if __name__ == "__main__":
         print(f"Saving intermediate samples in {intermediate_dir}.")
         os.makedirs(intermediate_dir, exist_ok=True)
 
-    final_dir = opts["final"]
+    final_dir = opts["final_dir"]
     if final_dir:
         print(f"Saving final samples in {final_dir}.")
         os.makedirs(final_dir, exist_ok=True)
