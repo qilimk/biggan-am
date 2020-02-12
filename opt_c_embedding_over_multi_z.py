@@ -150,7 +150,8 @@ def optimize_embedding():
             optimizer.step()
 
             avg_target_prob = pred_probs[:, target_class].mean().item()
-            log_line = f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\t"
+            log_line = f"Embedding: {init_embedding_idx}\t"
+            log_line += f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\t"
             log_line += f"Average Target Probability:{avg_target_prob:.4f}"
             print(log_line)
 
