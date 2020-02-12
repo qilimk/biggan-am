@@ -9,7 +9,7 @@ steps_per_z: 20
 model: "alexnet"
 resolution: 256
 alpha: 0.1
-dloss_function: "softmax"  # "", "softmax", "pixelwise", or "features".
+dloss_function: ""  # "", "softmax", "pixelwise", or "features".
 noise_std: 0.1
 weights_path: "pretrained_weights/138k"
 target_class: 13
