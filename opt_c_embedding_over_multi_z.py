@@ -150,12 +150,12 @@ def optimize_embedding():
             optimizer.step()
 
             avg_target_prob = pred_probs[:, target_class].mean().item()
-            print(
-                f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\tavg_prob:{avg_target_prob:.4f}"
-            )
+            log_line = f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\t"
+            log_line += f"Average Target Probability:{avg_target_prob:.4f}"
+            print(log_line)
 
             if intermediate_dir:
-                img_f = f"{embedding_idx}_{global_step_id:0=7d}.jpg"
+                img_f = f"{init_embedding_idx}_{global_step_id:0=7d}.jpg"
                 output_image_path = f"{intermediate_dir}/{img_f}"
                 save_image(
                     gan_images_tensor, output_image_path, normalize=True, nrow=10
@@ -178,12 +178,12 @@ def save_final_samples():
 
         save_all.append(gan_images_tensor)
 
-    final_image_path = f"{final_dir}/{embedding_idx}.jpg"
+    final_image_path = f"{final_dir}/{init_embedding_idx}.jpg"
     save_all = torch.cat(save_all, dim=0)
     save_image(save_all, final_image_path, normalize=True, nrow=10)
 
     optim_embedding_clamped.detach().cpu().numpy().save(
-        f"{final_dir}/{embedding_idx}.npy"
+        f"{final_dir}/{init_embedding_idx}.npy"
     )
 
 
@@ -219,11 +219,11 @@ if __name__ == "__main__":
         biggan_weights = "pretrained_weights/biggan_256_weights.pth"
 
     G.load_state_dict(torch.load(f"{biggan_weights}"), strict=False)
-    G = G.to(device)
+    G = nn.DataParallel(G).to(device)
     G.eval()
 
     model = opts["model"]
-    net = load_net(model).to(device)
+    net = nn.DataParallel(load_net(model)).to(device)
     net.eval()
 
     if model in {"mit_alexnet", "mit_resnet18", "alexnet"}:
@@ -266,8 +266,8 @@ if __name__ == "__main__":
     labels = torch.LongTensor([target_class] * z_num).to(device)
     state_z = torch.get_rng_state()
 
-    for (embedding_idx, init_embedding) in enumerate(init_embeddings):
-        embedding_idx = str(embedding_idx).zfill(2)
+    for (init_embedding_idx, init_embedding) in enumerate(init_embeddings):
+        init_embedding_idx = str(init_embedding_idx).zfill(2)
         optim_embedding = optimize_embedding()
         if final_dir:
             save_final_samples()
