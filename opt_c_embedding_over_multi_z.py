@@ -182,8 +182,9 @@ def save_final_samples():
     save_all = torch.cat(save_all, dim=0)
     save_image(save_all, final_image_path, normalize=True, nrow=10)
 
-    optim_embedding_clamped.detach().cpu().numpy().save(
-        f"{final_dir}/{init_embedding_idx}.npy"
+    np.save(
+        f"{final_dir}/{init_embedding_idx}.npy",
+        optim_embedding_clamped.detach().cpu().numpy(),
     )
 
 
