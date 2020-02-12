@@ -11,16 +11,12 @@ from utils import *
 
 
 def get_initial_embeddings():
+
+    class_embeddings = np.load(f"biggan_embeddings_{resolution}.npy")
+    class_embeddings = torch.from_numpy(class_embeddings)
+
     index_list = []
     embedding_dim = 128
-
-    if resolution == 128:
-        embedding_name = "other_embedding.npy"
-        class_embeddings = np.load(embedding_name)
-    else:
-        class_embeddings = np.load("1000_embedding_array.npy")
-
-    class_embeddings = torch.from_numpy(class_embeddings)
 
     if opts["init_method"] == "mean":
 
@@ -76,15 +72,47 @@ def get_initial_embeddings():
     return (init_embeddings, index_list)
 
 
-def optimize_embedding():
+def get_diversity_loss(zs, pred_probs, resized_images_tensor):
+    denom = F.pairwise_distance(zs[odd_list, :], zs[even_list, :])
 
-    global_step_id = 0
+    if dloss_function == "softmax":
+
+        num = torch.sum(
+            F.pairwise_distance(
+                pred_probs[odd_list, :], pred_probs[even_list, :]
+            )
+        )
+
+    elif dloss_function == "features":
+
+        features_out = alexnet_conv5(resized_images_tensor)
+        num = torch.sum(
+            F.pairwise_distance(
+                features_out[odd_list, :].view(half_z_num, -1),
+                features_out[even_list, :].view(half_z_num, -1),
+            )
+        )
+
+    else:
+
+        num = torch.sum(
+            F.pairwise_distance(
+                resized_images_tensor[odd_list, :].view(half_z_num, -1),
+                resized_images_tensor[even_list, :].view(half_z_num, -1),
+            )
+        )
+
+    return num / denom
+
+
+def optimize_embedding():
 
     optim_embedding = init_embedding.unsqueeze(0).to(device)
     optim_embedding.requires_grad_()
     optimizer = optim.Adam([optim_embedding], lr=opts["lr"], weight_decay=opts["dr"])
 
     torch.set_rng_state(state_z)
+    global_step_id = 0
 
     for epoch in range(opts["n_iters"]):
 
@@ -106,36 +134,7 @@ def optimize_embedding():
             pred_probs = nn.functional.softmax(pred_logits, dim=1)
 
             if dloss_function:
-                denom = F.pairwise_distance(zs[odd_list, :], zs[even_list, :])
-
-                if dloss_function == "softmax":
-
-                    diversity_loss = torch.sum(
-                        F.pairwise_distance(
-                            pred_probs[odd_list, :], pred_probs[even_list, :]
-                        )
-                    )
-
-                elif dloss_function == "features":
-
-                    features_out = alexnet_conv5(resized_images_tensor)
-                    diversity_loss = torch.sum(
-                        F.pairwise_distance(
-                            features_out[odd_list, :].view(half_z_num, -1),
-                            features_out[even_list, :].view(half_z_num, -1),
-                        )
-                    )
-
-                else:
-
-                    diversity_loss = torch.sum(
-                        F.pairwise_distance(
-                            resized_images_tensor[odd_list, :].view(half_z_num, -1),
-                            resized_images_tensor[even_list, :].view(half_z_num, -1),
-                        )
-                    )
-
-                loss += -opts["alpha"] * diversity_loss / denom
+                loss += -opts["alpha"] * get_diversity_loss()
 
             loss.backward()
             optimizer.step()
@@ -148,7 +147,9 @@ def optimize_embedding():
             if intermediate_dir:
                 img_f = f"{embedding_idx}_{global_step_id:0=7d}.jpg"
                 output_image_path = f"{intermediate_dir}/{img_f}"
-                save_image(gan_images_tensor, output_image_path, normalize=True, nrow=10)
+                save_image(
+                    gan_images_tensor, output_image_path, normalize=True, nrow=10
+                )
 
             torch.cuda.empty_cache()
 
@@ -171,7 +172,9 @@ def save_final_samples():
     save_all = torch.cat(save_all, dim=0)
     save_image(save_all, final_image_path, normalize=True, nrow=10)
 
-    optim_embedding_clamped.detach().cpu().numpy().save(f"{final_dir}/{embedding_idx}.npy")
+    optim_embedding_clamped.detach().cpu().numpy().save(
+        f"{final_dir}/{embedding_idx}.npy"
+    )
 
 
 if __name__ == "__main__":
@@ -193,7 +196,9 @@ if __name__ == "__main__":
     dloss_function = opts["dloss_function"]
     if dloss_function:
         print(f"Using diversity loss: {dloss_function}")
-        list_1 = list(range(0, z_num - 1, 2)) + [random.randint(0, 9) for p in range(10)]
+        list_1 = list(range(0, z_num - 1, 2)) + [
+            random.randint(0, 9) for p in range(10)
+        ]
         list_2 = list((np.array(range(1, z_num, 2)) + 4) % 20) + [
             random.randint(10, 19) for p in range(10)
         ]
@@ -202,8 +207,6 @@ if __name__ == "__main__":
         half_z_num = int(z_num / 2)
 
     # Load the models.
-    start_time = time.time()
-
     # Set up cudnn.benchmark for free speed.
     torch.backends.cudnn.benchmark = True
     device = "cuda:0"
@@ -211,6 +214,7 @@ if __name__ == "__main__":
     print("Loading the BigGAN generator model...")
     resolution = opts["resolution"]
     config = get_config(resolution)
+    start_time = time.time()
     G = BigGAN.Generator(**config)
     if resolution == 128:
         biggan_weights = "pretrained_weights/138k/G_ema.pth"
@@ -225,7 +229,7 @@ if __name__ == "__main__":
     net = load_net(model).to(device)
     net.eval()
 
-    if model in {"mit_alexnet", "mit_resnet18"}:
+    if model in {"mit_alexnet", "mit_resnet18", "alexnet"}:
         eval_net = net
     else:
         eval_net = load_net("alexnet")
