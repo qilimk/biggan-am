@@ -190,17 +190,16 @@ if __name__ == "__main__":
         print(f"The noise std is: {noise_std}")
 
     z_num = opts["z_num"]
-    list_1 = list(range(0, z_num - 1, 2)) + [random.randint(0, 9) for p in range(10)]
-    list_2 = list((np.array(range(1, z_num, 2)) + 4) % 20) + [
-        random.randint(10, 19) for p in range(10)
-    ]
-
     dloss_function = opts["dloss_function"]
     if dloss_function:
         print(f"Using diversity loss: {dloss_function}")
-        half_z_num = int(z_num / 2)
+        list_1 = list(range(0, z_num - 1, 2)) + [random.randint(0, 9) for p in range(10)]
+        list_2 = list((np.array(range(1, z_num, 2)) + 4) % 20) + [
+            random.randint(10, 19) for p in range(10)
+        ]
         odd_list = list(range(0, z_num - 1, 2)) + list_1
         even_list = list(range(1, z_num, 2)) + list_2
+        half_z_num = int(z_num / 2)
 
     # Load the models.
     start_time = time.time()
