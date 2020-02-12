@@ -175,7 +175,7 @@ def save_final_samples():
 
 
 if __name__ == "__main__":
-    opts = yaml.safe_load("opts.yaml")
+    opts = yaml.safe_load(open("opts.yaml"))
 
     # Set random seed.
     seed_z = opts["seed_z"]
