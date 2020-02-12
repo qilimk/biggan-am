@@ -1,4 +1,5 @@
 import BigGAN
+import itertools
 import numpy as np
 import random
 import time
@@ -18,13 +19,13 @@ def get_initial_embeddings():
     index_list = []
     embedding_dim = 128
 
-    if opts["init_method"] == "mean":
+    if init_method == "mean":
 
         mean_class_embedding = torch.mean(class_embeddings, dim=0)
         init_embeddings = mean_class_embedding.repeat(init_num, 1)
         init_embeddings += torch.randn((init_num, embedding_dim)) * 0.1
 
-    if opts["init_method"] == "top":
+    if init_method == "top":
 
         class_embeddings_clamped = torch.clamp(class_embeddings, min_clamp, max_clamp)
 
@@ -55,13 +56,12 @@ def get_initial_embeddings():
         init_embeddings = class_embeddings[sort_index[-init_num:]]
         index_list = sort_index[-init_num:]
 
-    elif opts["init_method"] == "random":
+    elif init_method == "random":
 
-        random_list = random.sample(range(1000), init_num)
-        init_embeddings = class_embeddings[random_list]
-        index_list = random_list
+        index_list = random.sample(range(1000), init_num)
+        init_embeddings = class_embeddings[index_list]
 
-    elif opts["init_method"] == "target":
+    elif init_method == "target":
 
         init_embeddings = (
             class_embeddings[target_class].unsqueeze(0).repeat(init_num, 1)
@@ -73,12 +73,21 @@ def get_initial_embeddings():
 
 
 def get_diversity_loss(zs, pred_probs, resized_images_tensor):
-    denom = F.pairwise_distance(zs[odd_list, :], zs[even_list, :])
+    pairs = list(itertools.combinations(range(len(zs)), 2))
+    random.shuffle(pairs)
+
+    first_idxs = []
+    second_idxs = []
+    for pair in pairs[:half_z_num]:
+        first_idxs.append(pair[0])
+        second_idxs.append(pair[1])
+
+    denom = F.pairwise_distance(zs[first_idxs, :], zs[second_idxs, :])
 
     if dloss_function == "softmax":
 
         num = torch.sum(
-            F.pairwise_distance(pred_probs[odd_list, :], pred_probs[even_list, :])
+            F.pairwise_distance(pred_probs[first_idxs, :], pred_probs[second_idxs, :])
         )
 
     elif dloss_function == "features":
@@ -86,8 +95,8 @@ def get_diversity_loss(zs, pred_probs, resized_images_tensor):
         features_out = alexnet_conv5(resized_images_tensor)
         num = torch.sum(
             F.pairwise_distance(
-                features_out[odd_list, :].view(half_z_num, -1),
-                features_out[even_list, :].view(half_z_num, -1),
+                features_out[first_idxs, :].view(half_z_num, -1),
+                features_out[second_idxs, :].view(half_z_num, -1),
             )
         )
 
@@ -95,8 +104,8 @@ def get_diversity_loss(zs, pred_probs, resized_images_tensor):
 
         num = torch.sum(
             F.pairwise_distance(
-                resized_images_tensor[odd_list, :].view(half_z_num, -1),
-                resized_images_tensor[even_list, :].view(half_z_num, -1),
+                resized_images_tensor[first_idxs, :].view(half_z_num, -1),
+                resized_images_tensor[second_idxs, :].view(half_z_num, -1),
             )
         )
 
@@ -188,24 +197,11 @@ if __name__ == "__main__":
     np.random.seed(seed_z)
     random.seed(seed_z)
 
-    print(f"Initialization method: " + opts["init_method"])
-    if opts["init_method"] == "target":
+    init_method = opts["init_method"]
+    print(f"Initialization method: {init_method}")
+    if init_method == "target":
         noise_std = opts["noise_std"]
         print(f"The noise std is: {noise_std}")
-
-    z_num = opts["z_num"]
-    dloss_function = opts["dloss_function"]
-    if dloss_function:
-        print(f"Using diversity loss: {dloss_function}")
-        list_1 = list(range(0, z_num - 1, 2)) + [
-            random.randint(0, 9) for p in range(10)
-        ]
-        list_2 = list((np.array(range(1, z_num, 2)) + 4) % 20) + [
-            random.randint(10, 19) for p in range(10)
-        ]
-        odd_list = list(range(0, z_num - 1, 2)) + list_1
-        even_list = list(range(1, z_num, 2)) + list_2
-        half_z_num = int(z_num / 2)
 
     # Load the models.
     # Set up cudnn.benchmark for free speed.
@@ -220,7 +216,7 @@ if __name__ == "__main__":
     if resolution == 128:
         biggan_weights = "pretrained_weights/138k/G_ema.pth"
     else:
-        biggan_weights = None
+        biggan_weights = "pretrained_weights/biggan_256_weights.pth"
 
     G.load_state_dict(torch.load(f"{biggan_weights}"), strict=False)
     G = G.to(device)
@@ -236,9 +232,14 @@ if __name__ == "__main__":
         eval_net = load_net("alexnet").to(device)
         eval_net.eval()
 
-    if dloss_function == "features":
-        alexnet_conv5 = load_net("alexnet_conv5")
-        alexnet_conv5.eval()
+    z_num = opts["z_num"]
+    dloss_function = opts["dloss_function"]
+    if dloss_function:
+        half_z_num = z_num // 2
+        print(f"Using diversity loss: {dloss_function}")
+        if dloss_function == "features":
+            alexnet_conv5 = load_net("alexnet_conv5")
+            alexnet_conv5.eval()
 
     print(f"BigGAN initialization time: {time.time() - start_time}")
 
