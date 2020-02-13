@@ -42,7 +42,7 @@ def get_initial_embeddings():
                 final_image_tensor = nn.functional.interpolate(
                     gan_image_tensor, size=224
                 )
-                final_out = eval_net(final_image_tensor)
+                final_out = net(final_image_tensor)
 
             final_probs = nn.functional.softmax(final_out, dim=1)
             avg_target_prob = final_probs[:, target_class].mean().item()
@@ -227,12 +227,6 @@ if __name__ == "__main__":
     model = opts["model"]
     net = nn.DataParallel(load_net(model)).to(device)
     net.eval()
-
-    if model in {"mit_alexnet", "mit_resnet18", "alexnet"}:
-        eval_net = net
-    else:
-        eval_net = load_net("alexnet").to(device)
-        eval_net.eval()
 
     z_num = opts["z_num"]
     dloss_function = opts["dloss_function"]
