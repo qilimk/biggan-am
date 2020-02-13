@@ -125,7 +125,7 @@ def run_biggan_am():
 
         zs = torch.randn((z_num, dim_z), requires_grad=False).to(device)
 
-        for n in range(opts["steps_per_z"]):
+        for z_step in range(opts["steps_per_z"]):
             global_step_id += 1
 
             optimizer.zero_grad()
@@ -151,7 +151,7 @@ def run_biggan_am():
 
             avg_target_prob = pred_probs[:, target_class].mean().item()
             log_line = f"Embedding: {init_embedding_idx}\t"
-            log_line += f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\t"
+            log_line += f"Epoch: {epoch:0=5d}\tStep: {z_step:0=5d}\t"
             log_line += f"Average Target Probability:{avg_target_prob:.4f}"
             print(log_line)
 
