@@ -34,7 +34,7 @@ unzip biggan_weights.zip
 * Pillow
 * [`robustness`](https://github.com/MadryLab/robustness)
 
-## Run the optimization
+## Run BigGAN-AM
 
 ```bash
 cd biggan-am
@@ -46,7 +46,7 @@ If you find this work useful for your research, please consider citing:
 ```
 @article{li2019improving,
   title={Improving sample diversity of a pre-trained, class-conditional GAN by changing its class embeddings},
-  author={Li, Qi and Mai, Long and Nguyen, Anh},
+  author={Li, Qi and Mai, Long and Alcorn, Michael A. and Nguyen, Anh},
   journal={arXiv preprint arXiv:1910.04760},
   year={2019}
 }
