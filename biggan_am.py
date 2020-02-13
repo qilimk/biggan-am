@@ -224,8 +224,7 @@ if __name__ == "__main__":
     G = nn.DataParallel(G).to(device)
     G.eval()
 
-    model = opts["model"]
-    net = nn.DataParallel(load_net(model)).to(device)
+    net = nn.DataParallel(load_net(opts["model"])).to(device)
     net.eval()
 
     z_num = opts["z_num"]
@@ -234,13 +233,13 @@ if __name__ == "__main__":
         half_z_num = z_num // 2
         print(f"Using diversity loss: {dloss_function}")
         if dloss_function == "features":
-            if model != "alexnet":
+            if opts["model"] != "alexnet":
                 alexnet_conv5 = nn.DataParallel(load_net("alexnet_conv5")).to(device)
+                alexnet_conv5.eval()
 
             else:
                 alexnet_conv5 = net.features
 
-            alexnet_conv5.eval()
 
     print(f"BigGAN initialization time: {time.time() - start_time}")
 
