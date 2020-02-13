@@ -38,7 +38,7 @@ unzip biggan_weights.zip
 
 ```bash
 cd biggan-am
-python3 opt_c_embedding_over_multi_z.py
+python3 biggan_am.py
 ```
 
 ## Citation
