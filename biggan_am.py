@@ -15,9 +15,9 @@ def get_initial_embeddings():
 
     class_embeddings = np.load(f"biggan_embeddings_{resolution}.npy")
     class_embeddings = torch.from_numpy(class_embeddings)
+    embedding_dim = class_embeddings.shape[-1]
 
     index_list = []
-    embedding_dim = 128
 
     if init_method == "mean":
 
@@ -38,14 +38,14 @@ def get_initial_embeddings():
             final_z = torch.randn((num_samples, dim_z), requires_grad=False)
 
             with torch.no_grad():
-                gan_image_tensor = G(final_z, repeat_class_embedding)
-                final_image_tensor = nn.functional.interpolate(
-                    gan_image_tensor, size=224
+                gan_images_tensor = G(final_z, repeat_class_embedding)
+                resized_images_tensor = nn.functional.interpolate(
+                    gan_images_tensor, size=224
                 )
-                final_out = net(final_image_tensor)
+                pred_logits = net(resized_images_tensor)
 
-            final_probs = nn.functional.softmax(final_out, dim=1)
-            avg_target_prob = final_probs[:, target_class].mean().item()
+            pred_probs = nn.functional.softmax(pred_logits, dim=1)
+            avg_target_prob = pred_probs[:, target_class].mean().item()
             avg_list.append(avg_target_prob)
 
         avg_array = np.array(avg_list)
@@ -112,7 +112,7 @@ def get_diversity_loss(zs, pred_probs, resized_images_tensor):
     return num / denom
 
 
-def optimize_embedding():
+def run_biggan_am():
 
     optim_embedding = init_embedding.unsqueeze(0).to(device)
     optim_embedding.requires_grad_()
@@ -269,6 +269,6 @@ if __name__ == "__main__":
 
     for (init_embedding_idx, init_embedding) in enumerate(init_embeddings):
         init_embedding_idx = str(init_embedding_idx).zfill(2)
-        optim_embedding = optimize_embedding()
+        optim_embedding = run_biggan_am()
         if final_dir:
             save_final_samples()
