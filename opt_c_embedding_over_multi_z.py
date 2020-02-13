@@ -234,7 +234,12 @@ if __name__ == "__main__":
         half_z_num = z_num // 2
         print(f"Using diversity loss: {dloss_function}")
         if dloss_function == "features":
-            alexnet_conv5 = load_net("alexnet_conv5")
+            if model != "alexnet":
+                alexnet_conv5 = nn.DataParallel(load_net("alexnet_conv5")).to(device)
+
+            else:
+                alexnet_conv5 = net.features
+
             alexnet_conv5.eval()
 
     print(f"BigGAN initialization time: {time.time() - start_time}")
