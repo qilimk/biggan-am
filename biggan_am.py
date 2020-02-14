@@ -169,9 +169,9 @@ def save_final_samples():
     save_all = []
     torch.set_rng_state(state_z)
     for show_id in range(3):
-        final_z = torch.randn((10, dim_z), device=device, requires_grad=False)
+        zs = torch.randn((10, dim_z), device=device, requires_grad=False)
         with torch.no_grad():
-            gan_images_tensor = G(final_z, repeat_optim_embedding)
+            gan_images_tensor = G(zs, repeat_optim_embedding)
 
         save_all.append(gan_images_tensor)
 
