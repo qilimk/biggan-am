@@ -21,6 +21,7 @@ Mode collapse is a well-known issue with Generative Adversarial Networks (GANs) 
 1) Install the Python packages (we used Python 3.6):
 
 ```bash
+cd biggan-am
 pip3 install -r requirements.txt
 ```
 
@@ -28,10 +29,18 @@ pip3 install -r requirements.txt
 
 ```bash
 cd biggan-am/pretrained_weights
+
+# 128x128 weights.
 fileid="1nAle7FCVFZdix2--ks0r5JBkFnKw8ctW"
 curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=${fileid}" > /dev/null
 curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=${fileid}" -o biggan_weights.zip
 unzip biggan_weights.zip
+rm biggan_weights.zip
+
+# 256x256 weights.
+fileid="1FEAXaUjRcV8mb0sHIwuS2EFyAcAITDTw"
+curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=${fileid}" > /dev/null
+curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=${fileid}" -o biggan_256_weights.pth
 ```
 
 ## Run BigGAN-AM
