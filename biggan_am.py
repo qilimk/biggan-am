@@ -16,9 +16,7 @@ def get_initial_embeddings():
 
     class_embeddings = np.load(f"biggan_embeddings_{resolution}.npy")
     class_embeddings = torch.from_numpy(class_embeddings)
-
-    index_list = []
-    embedding_dim = 128
+    embedding_dim = class_embeddings.shape[-1]
 
     if init_method == "mean":
 
@@ -39,14 +37,14 @@ def get_initial_embeddings():
             final_z = torch.randn((num_samples, dim_z), requires_grad=False)
 
             with torch.no_grad():
-                gan_image_tensor = G(final_z, repeat_class_embedding)
-                final_image_tensor = nn.functional.interpolate(
-                    gan_image_tensor, size=224
+                gan_images_tensor = G(final_z, repeat_class_embedding)
+                resized_images_tensor = nn.functional.interpolate(
+                    gan_images_tensor, size=224
                 )
-                final_out = net(final_image_tensor)
+                pred_logits = net(resized_images_tensor)
 
-            final_probs = nn.functional.softmax(final_out, dim=1)
-            avg_target_prob = final_probs[:, target_class].mean().item()
+            pred_probs = nn.functional.softmax(pred_logits, dim=1)
+            avg_target_prob = pred_probs[:, target_class].mean().item()
             avg_list.append(avg_target_prob)
 
         avg_array = np.array(avg_list)
@@ -55,11 +53,11 @@ def get_initial_embeddings():
         print(f"The top {init_num} classes: {sort_index[-init_num:]}")
 
         init_embeddings = class_embeddings[sort_index[-init_num:]]
-        index_list = sort_index[-init_num:]
 
     elif init_method == "random":
 
         index_list = random.sample(range(1000), init_num)
+        print(f"The {init_num} random classes: {index_list}")
         init_embeddings = class_embeddings[index_list]
 
     elif init_method == "target":
@@ -68,9 +66,8 @@ def get_initial_embeddings():
             class_embeddings[target_class].unsqueeze(0).repeat(init_num, 1)
         )
         init_embeddings += torch.randn((init_num, embedding_dim)) * noise_std
-        index_list = [target_class] * init_num
 
-    return (init_embeddings, index_list)
+    return init_embeddings
 
 
 def get_diversity_loss(zs, pred_probs, resized_images_tensor):
@@ -113,21 +110,19 @@ def get_diversity_loss(zs, pred_probs, resized_images_tensor):
     return num / denom
 
 
-def optimize_embedding():
+def run_biggan_am():
 
     optim_embedding = init_embedding.unsqueeze(0).to(device)
     optim_embedding.requires_grad_()
     optimizer = optim.Adam([optim_embedding], lr=opts["lr"], weight_decay=opts["dr"])
 
     torch.set_rng_state(state_z)
-    global_step_id = 0
 
     for epoch in range(opts["n_iters"]):
 
         zs = torch.randn((z_num, dim_z), requires_grad=False).to(device)
 
-        for n in range(opts["steps_per_z"]):
-            global_step_id += 1
+        for z_step in range(opts["steps_per_z"]):
 
             optimizer.zero_grad()
 
@@ -152,11 +147,12 @@ def optimize_embedding():
 
             avg_target_prob = pred_probs[:, target_class].mean().item()
             log_line = f"Embedding: {init_embedding_idx}\t"
-            log_line += f"Epoch: {epoch:0=5d}\tStep: {n:0=5d}\t"
+            log_line += f"Epoch: {epoch:0=5d}\tStep: {z_step:0=5d}\t"
             log_line += f"Average Target Probability:{avg_target_prob:.4f}"
             print(log_line)
 
             if intermediate_dir:
+                global_step_id = epoch * opts["steps_per_z"] + z_step
                 img_f = f"{init_embedding_idx}_{global_step_id:0=7d}.jpg"
                 output_image_path = f"{intermediate_dir}/{img_f}"
                 save_image(
@@ -172,19 +168,22 @@ def save_final_samples():
     
     class_embeddings = np.load(f"biggan_embeddings_{resolution}.npy")
     class_embeddings = torch.from_numpy(class_embeddings)
-    optim_embedding_clamped = torch.clamp(optim_embedding, min_clamp, max_clamp)
-    original_embedding_clamped = torch.clamp(class_embeddings[target_class].unsqueeze(0),min_clamp, max_clamp)
-    # pdb.set_trace()
-    repeat_optim_embedding = optim_embedding_clamped.repeat(4, 1).to(device)
+    original_embedding_clamped = torch.clamp(class_embeddings[target_class].unsqueeze(0), min_clamp, max_clamp)
     repeat_original_embedding = original_embedding_clamped.repeat(4, 1).to(device)
+
+    optim_embedding_clamped = torch.clamp(optim_embedding, min_clamp, max_clamp)
+    repeat_optim_embedding = optim_embedding_clamped.repeat(4, 1).to(device)
+    
     save_all = []
     original_all = []
     torch.set_rng_state(state_z)
+
     for show_id in range(4):
-        final_z = torch.randn((4, dim_z), device=device, requires_grad=False)
+        zs = torch.randn((4, dim_z), device=device, requires_grad=False)
         with torch.no_grad():
-            gan_images_tensor = G(final_z, repeat_optim_embedding)
-            original_gan_images_tensor = G(final_z, repeat_original_embedding)
+            gan_images_tensor = G(zs, repeat_optim_embedding)
+            original_gan_images_tensor = G(zs, repeat_original_embedding)
+
         save_all.append(gan_images_tensor)
         original_all.append(original_gan_images_tensor)
     final_image_path = f"{final_dir}/{init_embedding_idx}.jpg"
@@ -237,8 +236,7 @@ if __name__ == "__main__":
     G = nn.DataParallel(G).to(device)
     G.eval()
 
-    model = opts["model"]
-    net = nn.DataParallel(load_net(model)).to(device)
+    net = nn.DataParallel(load_net(opts["model"])).to(device)
     net.eval()
 
     z_num = opts["z_num"]
@@ -247,8 +245,12 @@ if __name__ == "__main__":
         half_z_num = z_num // 2
         print(f"Using diversity loss: {dloss_function}")
         if dloss_function == "features":
-            alexnet_conv5 = load_net("alexnet_conv5")
-            alexnet_conv5.eval()
+            if opts["model"] != "alexnet":
+                alexnet_conv5 = nn.DataParallel(load_net("alexnet_conv5")).to(device)
+                alexnet_conv5.eval()
+
+            else:
+                alexnet_conv5 = net.features
 
     print(f"BigGAN initialization time: {time.time() - start_time}")
 
@@ -269,7 +271,7 @@ if __name__ == "__main__":
     min_clamp = min_clamp_dict[resolution]
 
     target_class = opts["target_class"]
-    (init_embeddings, index_list) = get_initial_embeddings()
+    init_embeddings = get_initial_embeddings()
 
     criterion = nn.CrossEntropyLoss()
     labels = torch.LongTensor([target_class] * z_num).to(device)
@@ -277,6 +279,6 @@ if __name__ == "__main__":
 
     for (init_embedding_idx, init_embedding) in enumerate(init_embeddings):
         init_embedding_idx = str(init_embedding_idx).zfill(2)
-        optim_embedding = optimize_embedding()
+        optim_embedding = run_biggan_am()
         if final_dir:
             save_final_samples()

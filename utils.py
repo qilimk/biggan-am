@@ -61,7 +61,7 @@ def load_mit(model_name):
     model = models.__dict__[model_name](num_classes=365)
     checkpoint = torch.load(model_file, map_location=lambda storage, loc: storage)
     state_dict = {
-        str.replace(k, "module.", ""): v for k, v in checkpoint["state_dict"].items()
+        str.replace(k, "module.", ""): v for (k, v) in checkpoint["state_dict"].items()
     }
     model.load_state_dict(state_dict)
 
@@ -70,7 +70,6 @@ def load_mit(model_name):
 
 def load_madrylab_imagenet(arch):
     data = "ImageNet"
-    arch = arch
     dataset_function = getattr(datasets, data)
     dataset = dataset_function(DATA_PATH_DICT[data])
     model_kwargs = {
