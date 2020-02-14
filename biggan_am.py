@@ -116,14 +116,12 @@ def run_biggan_am():
     optimizer = optim.Adam([optim_embedding], lr=opts["lr"], weight_decay=opts["dr"])
 
     torch.set_rng_state(state_z)
-    global_step_id = 0
 
     for epoch in range(opts["n_iters"]):
 
         zs = torch.randn((z_num, dim_z), requires_grad=False).to(device)
 
         for z_step in range(opts["steps_per_z"]):
-            global_step_id += 1
 
             optimizer.zero_grad()
 
@@ -153,6 +151,7 @@ def run_biggan_am():
             print(log_line)
 
             if intermediate_dir:
+                global_step_id = epoch * opts["steps_per_z"] + z_step
                 img_f = f"{init_embedding_idx}_{global_step_id:0=7d}.jpg"
                 output_image_path = f"{intermediate_dir}/{img_f}"
                 save_image(
