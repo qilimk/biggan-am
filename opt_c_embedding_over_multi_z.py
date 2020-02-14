@@ -10,6 +10,7 @@ from torch import optim
 from torchvision.utils import save_image
 from utils import *
 
+import pdb
 
 def get_initial_embeddings():
 
@@ -168,20 +169,32 @@ def optimize_embedding():
 
 
 def save_final_samples():
+    
+    class_embeddings = np.load(f"biggan_embeddings_{resolution}.npy")
+    class_embeddings = torch.from_numpy(class_embeddings)
     optim_embedding_clamped = torch.clamp(optim_embedding, min_clamp, max_clamp)
-    repeat_optim_embedding = optim_embedding_clamped.repeat(10, 1).to(device)
+    original_embedding_clamped = torch.clamp(class_embeddings[target_class].unsqueeze(0),min_clamp, max_clamp)
+    # pdb.set_trace()
+    repeat_optim_embedding = optim_embedding_clamped.repeat(4, 1).to(device)
+    repeat_original_embedding = original_embedding_clamped.repeat(4, 1).to(device)
     save_all = []
+    original_all = []
     torch.set_rng_state(state_z)
-    for show_id in range(3):
-        final_z = torch.randn((10, dim_z), device=device, requires_grad=False)
+    for show_id in range(4):
+        final_z = torch.randn((4, dim_z), device=device, requires_grad=False)
         with torch.no_grad():
             gan_images_tensor = G(final_z, repeat_optim_embedding)
-
+            original_gan_images_tensor = G(final_z, repeat_original_embedding)
         save_all.append(gan_images_tensor)
-
+        original_all.append(original_gan_images_tensor)
     final_image_path = f"{final_dir}/{init_embedding_idx}.jpg"
+    original_image_path = f"{final_dir}/{init_embedding_idx}_original.jpg"
     save_all = torch.cat(save_all, dim=0)
-    save_image(save_all, final_image_path, normalize=True, nrow=10)
+    original_all = torch.cat(original_all, dim=0)
+
+    save_image(save_all, final_image_path, normalize=True, nrow=4)
+    if opts["model"] not in {"mit_alexnet","mit_resnet18" }:
+        save_image(original_all, original_image_path, normalize=True, nrow=4)
 
     np.save(
         f"{final_dir}/{init_embedding_idx}.npy",
