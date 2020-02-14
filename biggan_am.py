@@ -10,7 +10,6 @@ from torch import optim
 from torchvision.utils import save_image
 from utils import *
 
-import pdb
 
 def get_initial_embeddings():
 
@@ -165,40 +164,35 @@ def run_biggan_am():
 
 
 def save_final_samples():
-    
-    class_embeddings = np.load(f"biggan_embeddings_{resolution}.npy")
-    class_embeddings = torch.from_numpy(class_embeddings)
-    original_embedding_clamped = torch.clamp(class_embeddings[target_class].unsqueeze(0), min_clamp, max_clamp)
-    repeat_original_embedding = original_embedding_clamped.repeat(4, 1).to(device)
 
     optim_embedding_clamped = torch.clamp(optim_embedding, min_clamp, max_clamp)
     repeat_optim_embedding = optim_embedding_clamped.repeat(4, 1).to(device)
-    
-    save_all = []
-    original_all = []
+
+    optim_imgs = []
+    if model not in {"mit_alexnet", "mit_resnet18"}:
+        original_imgs = []
+
     torch.set_rng_state(state_z)
 
-    for show_id in range(4):
-        zs = torch.randn((4, dim_z), device=device, requires_grad=False)
+    for show_id in range(num_final):
+        zs = torch.randn((num_final, dim_z), device=device, requires_grad=False)
         with torch.no_grad():
-            gan_images_tensor = G(zs, repeat_optim_embedding)
-            original_gan_images_tensor = G(zs, repeat_original_embedding)
+            optim_imgs.append(G(zs, repeat_optim_embedding))
+            if model not in {"mit_alexnet", "mit_resnet18"}:
+                original_imgs.append(G(zs, repeat_original_embedding))
 
-        save_all.append(gan_images_tensor)
-        original_all.append(original_gan_images_tensor)
     final_image_path = f"{final_dir}/{init_embedding_idx}.jpg"
-    original_image_path = f"{final_dir}/{init_embedding_idx}_original.jpg"
-    save_all = torch.cat(save_all, dim=0)
-    original_all = torch.cat(original_all, dim=0)
-
-    save_image(save_all, final_image_path, normalize=True, nrow=4)
-    if opts["model"] not in {"mit_alexnet","mit_resnet18" }:
-        save_image(original_all, original_image_path, normalize=True, nrow=4)
-
+    optim_imgs = torch.cat(optim_imgs, dim=0)
+    save_image(optim_imgs, final_image_path, normalize=True, nrow=4)
     np.save(
         f"{final_dir}/{init_embedding_idx}.npy",
         optim_embedding_clamped.detach().cpu().numpy(),
     )
+
+    if model not in {"mit_alexnet", "mit_resnet18"}:
+        original_image_path = f"{final_dir}/{init_embedding_idx}_original.jpg"
+        original_imgs = torch.cat(original_imgs, dim=0)
+        save_image(original_imgs, original_image_path, normalize=True, nrow=4)
 
 
 if __name__ == "__main__":
@@ -236,7 +230,8 @@ if __name__ == "__main__":
     G = nn.DataParallel(G).to(device)
     G.eval()
 
-    net = nn.DataParallel(load_net(opts["model"])).to(device)
+    model = opts["model"]
+    net = nn.DataParallel(load_net(model)).to(device)
     net.eval()
 
     z_num = opts["z_num"]
@@ -245,7 +240,7 @@ if __name__ == "__main__":
         half_z_num = z_num // 2
         print(f"Using diversity loss: {dloss_function}")
         if dloss_function == "features":
-            if opts["model"] != "alexnet":
+            if model != "alexnet":
                 alexnet_conv5 = nn.DataParallel(load_net("alexnet_conv5")).to(device)
                 alexnet_conv5.eval()
 
@@ -255,16 +250,6 @@ if __name__ == "__main__":
     print(f"BigGAN initialization time: {time.time() - start_time}")
 
     # Set up optimization.
-    intermediate_dir = opts["intermediate_dir"]
-    if intermediate_dir:
-        print(f"Saving intermediate samples in {intermediate_dir}.")
-        os.makedirs(intermediate_dir, exist_ok=True)
-
-    final_dir = opts["final_dir"]
-    if final_dir:
-        print(f"Saving final samples in {final_dir}.")
-        os.makedirs(final_dir, exist_ok=True)
-
     init_num = opts["init_num"]
     dim_z = dim_z_dict[resolution]
     max_clamp = max_clamp_dict[resolution]
@@ -276,6 +261,26 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     labels = torch.LongTensor([target_class] * z_num).to(device)
     state_z = torch.get_rng_state()
+
+    intermediate_dir = opts["intermediate_dir"]
+    if intermediate_dir:
+        print(f"Saving intermediate samples in {intermediate_dir}.")
+        os.makedirs(intermediate_dir, exist_ok=True)
+
+    final_dir = opts["final_dir"]
+    if final_dir:
+        print(f"Saving final samples in {final_dir}.")
+        os.makedirs(final_dir, exist_ok=True)
+        if model not in {"mit_alexnet", "mit_resnet18"}:
+            original_embeddings = np.load(f"biggan_embeddings_{resolution}.npy")
+            original_embeddings = torch.from_numpy(original_embeddings)
+            original_embedding_clamped = torch.clamp(
+                original_embeddings[target_class].unsqueeze(0), min_clamp, max_clamp
+            )
+            num_final = 4
+            repeat_original_embedding = original_embedding_clamped.repeat(
+                num_final, 1
+            ).to(device)
 
     for (init_embedding_idx, init_embedding) in enumerate(init_embeddings):
         init_embedding_idx = str(init_embedding_idx).zfill(2)
