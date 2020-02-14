@@ -17,8 +17,6 @@ def get_initial_embeddings():
     class_embeddings = torch.from_numpy(class_embeddings)
     embedding_dim = class_embeddings.shape[-1]
 
-    index_list = []
-
     if init_method == "mean":
 
         mean_class_embedding = torch.mean(class_embeddings, dim=0)
@@ -54,11 +52,11 @@ def get_initial_embeddings():
         print(f"The top {init_num} classes: {sort_index[-init_num:]}")
 
         init_embeddings = class_embeddings[sort_index[-init_num:]]
-        index_list = sort_index[-init_num:]
 
     elif init_method == "random":
 
         index_list = random.sample(range(1000), init_num)
+        print(f"The {init_num} random classes: {index_list}")
         init_embeddings = class_embeddings[index_list]
 
     elif init_method == "target":
@@ -67,9 +65,8 @@ def get_initial_embeddings():
             class_embeddings[target_class].unsqueeze(0).repeat(init_num, 1)
         )
         init_embeddings += torch.randn((init_num, embedding_dim)) * noise_std
-        index_list = [target_class] * init_num
 
-    return (init_embeddings, index_list)
+    return init_embeddings
 
 
 def get_diversity_loss(zs, pred_probs, resized_images_tensor):
@@ -240,7 +237,6 @@ if __name__ == "__main__":
             else:
                 alexnet_conv5 = net.features
 
-
     print(f"BigGAN initialization time: {time.time() - start_time}")
 
     # Set up optimization.
@@ -260,7 +256,7 @@ if __name__ == "__main__":
     min_clamp = min_clamp_dict[resolution]
 
     target_class = opts["target_class"]
-    (init_embeddings, index_list) = get_initial_embeddings()
+    init_embeddings = get_initial_embeddings()
 
     criterion = nn.CrossEntropyLoss()
     labels = torch.LongTensor([target_class] * z_num).to(device)
