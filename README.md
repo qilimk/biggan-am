@@ -43,10 +43,18 @@ curl -c ./cookie -s -L "https://drive.google.com/uc?export=download&id=${fileid}
 curl -Lb ./cookie "https://drive.google.com/uc?export=download&confirm=`awk '/download/ {print $NF}' ./cookie`&id=${fileid}" -o biggan_256_weights.pth
 ```
 
-## Run BigGAN-AM
+## Running BigGAN-AM
+
+1) Edit [`opts.yaml`](opts.yaml):
 
 ```bash
 cd biggan-am
+nano opts.yaml
+```
+
+2) Run BigGAN-AM:
+
+```bash
 python3 biggan_am.py
 ```
 
