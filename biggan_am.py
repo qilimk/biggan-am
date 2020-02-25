@@ -11,8 +11,9 @@ from torchvision.utils import save_image
 from utils import *
 
 
-def get_initial_embeddings():
-
+def get_initial_embeddings(
+    init_method, init_num, min_clamp, max_clamp, dim_z, G, net, target_class, noise_std
+):
     class_embeddings = np.load(f"biggan_embeddings_{resolution}.npy")
     class_embeddings = torch.from_numpy(class_embeddings)
     embedding_dim = class_embeddings.shape[-1]
@@ -69,7 +70,9 @@ def get_initial_embeddings():
     return init_embeddings
 
 
-def get_diversity_loss(zs, pred_probs, resized_images_tensor):
+def get_diversity_loss(
+    half_z_num, zs, dloss_function, pred_probs, alexnet_conv5, resized_images_tensor
+):
     pairs = list(itertools.combinations(range(len(zs)), 2))
     random.shuffle(pairs)
 
@@ -109,19 +112,41 @@ def get_diversity_loss(zs, pred_probs, resized_images_tensor):
     return num / denom
 
 
-def run_biggan_am():
-
+def run_biggan_am(
+    init_embedding,
+    device,
+    lr,
+    dr,
+    state_z,
+    n_iters,
+    z_num,
+    dim_z,
+    steps_per_z,
+    min_clamp,
+    max_clamp,
+    G,
+    net,
+    criterion,
+    labels,
+    dloss_function,
+    half_z_num,
+    alexnet_conv5,
+    alpha,
+    target_class,
+    init_embedding_idx,
+    intermediate_dir,
+):
     optim_embedding = init_embedding.unsqueeze(0).to(device)
     optim_embedding.requires_grad_()
-    optimizer = optim.Adam([optim_embedding], lr=opts["lr"], weight_decay=opts["dr"])
+    optimizer = optim.Adam([optim_embedding], lr=lr, weight_decay=dr)
 
     torch.set_rng_state(state_z)
 
-    for epoch in range(opts["n_iters"]):
+    for epoch in range(n_iters):
 
         zs = torch.randn((z_num, dim_z), requires_grad=False).to(device)
 
-        for z_step in range(opts["steps_per_z"]):
+        for z_step in range(steps_per_z):
 
             optimizer.zero_grad()
 
@@ -137,9 +162,14 @@ def run_biggan_am():
 
             if dloss_function:
                 diversity_loss = get_diversity_loss(
-                    zs, pred_probs, resized_images_tensor
+                    half_z_num,
+                    zs,
+                    dloss_function,
+                    pred_probs,
+                    alexnet_conv5,
+                    resized_images_tensor,
                 )
-                loss += -opts["alpha"] * diversity_loss
+                loss += -alpha * diversity_loss
 
             loss.backward()
             optimizer.step()
@@ -151,7 +181,7 @@ def run_biggan_am():
             print(log_line)
 
             if intermediate_dir:
-                global_step_id = epoch * opts["steps_per_z"] + z_step
+                global_step_id = epoch * steps_per_z + z_step
                 img_f = f"{init_embedding_idx}_{global_step_id:0=7d}.jpg"
                 output_image_path = f"{intermediate_dir}/{img_f}"
                 save_image(
@@ -163,8 +193,20 @@ def run_biggan_am():
     return optim_embedding
 
 
-def save_final_samples():
-
+def save_final_samples(
+    optim_embedding,
+    min_clamp,
+    max_clamp,
+    device,
+    model,
+    state_z,
+    num_final,
+    dim_z,
+    G,
+    repeat_original_embedding,
+    final_dir,
+    init_embedding_idx,
+):
     optim_embedding_clamped = torch.clamp(optim_embedding, min_clamp, max_clamp)
     repeat_optim_embedding = optim_embedding_clamped.repeat(4, 1).to(device)
 
@@ -195,7 +237,7 @@ def save_final_samples():
         save_image(original_imgs, original_image_path, normalize=True, nrow=4)
 
 
-if __name__ == "__main__":
+def main():
     opts = yaml.safe_load(open("opts.yaml"))
 
     # Set random seed.
@@ -210,6 +252,8 @@ if __name__ == "__main__":
     if init_method == "target":
         noise_std = opts["noise_std"]
         print(f"The noise std is: {noise_std}")
+    else:
+        noise_std = None
 
     # Load the models.
     # Set up cudnn.benchmark for free speed.
@@ -247,6 +291,9 @@ if __name__ == "__main__":
             else:
                 alexnet_conv5 = net.features
 
+    else:
+        half_z_num = alexnet_conv5 = None
+
     print(f"BigGAN initialization time: {time.time() - start_time}")
 
     # Set up optimization.
@@ -256,7 +303,17 @@ if __name__ == "__main__":
     min_clamp = min_clamp_dict[resolution]
 
     target_class = opts["target_class"]
-    init_embeddings = get_initial_embeddings()
+    init_embeddings = get_initial_embeddings(
+        init_method,
+        init_num,
+        min_clamp,
+        max_clamp,
+        dim_z,
+        G,
+        net,
+        target_class,
+        noise_std,
+    )
 
     criterion = nn.CrossEntropyLoss()
     labels = torch.LongTensor([target_class] * z_num).to(device)
@@ -282,8 +339,52 @@ if __name__ == "__main__":
                 num_final, 1
             ).to(device)
 
+        else:
+            num_final = None
+            repeat_original_embedding = None
+
     for (init_embedding_idx, init_embedding) in enumerate(init_embeddings):
         init_embedding_idx = str(init_embedding_idx).zfill(2)
-        optim_embedding = run_biggan_am()
+        optim_embedding = run_biggan_am(
+            init_embedding,
+            device,
+            opts["lr"],
+            opts["dr"],
+            state_z,
+            opts["n_iters"],
+            z_num,
+            dim_z,
+            opts["steps_per_z"],
+            min_clamp,
+            max_clamp,
+            G,
+            net,
+            criterion,
+            labels,
+            dloss_function,
+            half_z_num,
+            alexnet_conv5,
+            opts["alpha"],
+            target_class,
+            init_embedding_idx,
+            intermediate_dir,
+        )
         if final_dir:
-            save_final_samples()
+            save_final_samples(
+                optim_embedding,
+                min_clamp,
+                max_clamp,
+                device,
+                model,
+                state_z,
+                num_final,
+                dim_z,
+                G,
+                repeat_original_embedding,
+                final_dir,
+                init_embedding_idx,
+            )
+
+
+if __name__ == "__main__":
+    main()
