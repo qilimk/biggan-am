@@ -1,0 +1,16 @@
+resolution: 256
+target_class: 13
+model: "alexnet"  # "alexnet", "inception_v3", "mit_alexnet", "mit_resnet18", or "madrylab_resnet50".
+dloss_function: ""  # "", "softmax", "pixelwise", or "features".
+init_method: "mean"  # "mean", "top", "random", or "target".
+init_num: 3
+n_iters: 10
+z_num: 10
+steps_per_z: 20
+lr: 0.1
+dr: 0.9
+alpha: 0.1
+noise_std: 0.1
+seed_z: 0
+intermediate_dir: ""
+final_dir: "final"
