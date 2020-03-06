@@ -12,7 +12,16 @@ from utils import *
 
 
 def get_initial_embeddings(
-    init_method, init_num, min_clamp, max_clamp, dim_z, G, net, target_class, noise_std
+    resolution,
+    init_method,
+    init_num,
+    min_clamp,
+    max_clamp,
+    dim_z,
+    G,
+    net,
+    target_class,
+    noise_std,
 ):
     class_embeddings = np.load(f"biggan_embeddings_{resolution}.npy")
     class_embeddings = torch.from_numpy(class_embeddings)
@@ -304,6 +313,7 @@ def main():
 
     target_class = opts["target_class"]
     init_embeddings = get_initial_embeddings(
+        resolution,
         init_method,
         init_num,
         min_clamp,
