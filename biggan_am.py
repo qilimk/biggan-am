@@ -144,10 +144,22 @@ def run_biggan_am(
     target_class,
     init_embedding_idx,
     intermediate_dir,
+    use_noise_layer,
 ):
     optim_embedding = init_embedding.unsqueeze(0).to(device)
     optim_embedding.requires_grad_()
-    optimizer = optim.Adam([optim_embedding], lr=lr, weight_decay=dr)
+    optim_comps = {
+        "optim_embedding": optim_embedding,
+        "use_noise_layer": use_noise_layer,
+    }
+    optim_params = [optim_embedding]
+    if use_noise_layer:
+        noise_layer = nn.Linear(dim_z, dim_z).to(device)
+        noise_layer.train()
+        optim_params += [params for params in noise_layer.parameters()]
+        optim_comps["noise_layer"] = noise_layer
+
+    optimizer = optim.Adam(optim_params, lr=lr, weight_decay=dr)
 
     torch.set_rng_state(state_z)
 
@@ -159,9 +171,14 @@ def run_biggan_am(
 
             optimizer.zero_grad()
 
+            if use_noise_layer:
+                z_hats = noise_layer(zs)
+            else:
+                z_hats = zs
+
             clamped_embedding = torch.clamp(optim_embedding, min_clamp, max_clamp)
             repeat_clamped_embedding = clamped_embedding.repeat(z_num, 1).to(device)
-            gan_images_tensor = G(zs, repeat_clamped_embedding)
+            gan_images_tensor = G(z_hats, repeat_clamped_embedding)
             resized_images_tensor = nn.functional.interpolate(
                 gan_images_tensor, size=224
             )
@@ -199,11 +216,11 @@ def run_biggan_am(
 
             torch.cuda.empty_cache()
 
-    return optim_embedding
+    return optim_comps
 
 
 def save_final_samples(
-    optim_embedding,
+    optim_comps,
     min_clamp,
     max_clamp,
     device,
@@ -216,8 +233,13 @@ def save_final_samples(
     final_dir,
     init_embedding_idx,
 ):
+    optim_embedding = optim_comps["optim_embedding"]
     optim_embedding_clamped = torch.clamp(optim_embedding, min_clamp, max_clamp)
     repeat_optim_embedding = optim_embedding_clamped.repeat(4, 1).to(device)
+
+    if optim_comps["use_noise_layer"]:
+        with torch.no_grad():
+            optim_comps["noise_layer"].eval()
 
     optim_imgs = []
     if model not in {"mit_alexnet", "mit_resnet18"}:
@@ -227,10 +249,17 @@ def save_final_samples(
 
     for show_id in range(num_final):
         zs = torch.randn((num_final, dim_z), device=device, requires_grad=False)
+        if optim_comps["use_noise_layer"]:
+            with torch.no_grad():
+                z_hats = optim_comps["noise_layer"](zs)
+
+        else:
+            z_hats = zs
+
         with torch.no_grad():
-            optim_imgs.append(G(zs, repeat_optim_embedding))
+            optim_imgs.append(G(z_hats, repeat_optim_embedding))
             if model not in {"mit_alexnet", "mit_resnet18"}:
-                original_imgs.append(G(zs, repeat_original_embedding))
+                original_imgs.append(G(z_hats, repeat_original_embedding))
 
     final_image_path = f"{final_dir}/{init_embedding_idx}.jpg"
     optim_imgs = torch.cat(optim_imgs, dim=0)
@@ -239,6 +268,11 @@ def save_final_samples(
         f"{final_dir}/{init_embedding_idx}.npy",
         optim_embedding_clamped.detach().cpu().numpy(),
     )
+    if optim_comps["use_noise_layer"]:
+        torch.save(
+            optim_comps["noise_layer"].state_dict(),
+            f"{final_dir}/{init_embedding_idx}_noise_layer.pth",
+        )
 
     if model not in {"mit_alexnet", "mit_resnet18"}:
         original_image_path = f"{final_dir}/{init_embedding_idx}_original.jpg"
@@ -355,7 +389,7 @@ def main():
 
     for (init_embedding_idx, init_embedding) in enumerate(init_embeddings):
         init_embedding_idx = str(init_embedding_idx).zfill(2)
-        optim_embedding = run_biggan_am(
+        optim_comps = run_biggan_am(
             init_embedding,
             device,
             opts["lr"],
@@ -378,10 +412,11 @@ def main():
             target_class,
             init_embedding_idx,
             intermediate_dir,
+            opts["use_noise_layer"],
         )
         if final_dir:
             save_final_samples(
-                optim_embedding,
+                optim_comps,
                 min_clamp,
                 max_clamp,
                 device,

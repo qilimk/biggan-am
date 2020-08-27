@@ -5,6 +5,7 @@ dloss_function: ""  # "", "softmax", "pixelwise", or "features".
 init_method: "mean"  # "mean", "top", "random", or "target".
 init_num: 3
 n_iters: 10
+use_noise_layer: False
 z_num: 10
 steps_per_z: 20
 lr: 0.1
