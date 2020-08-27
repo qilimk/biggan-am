@@ -238,8 +238,7 @@ def save_final_samples(
     repeat_optim_embedding = optim_embedding_clamped.repeat(4, 1).to(device)
 
     if optim_comps["use_noise_layer"]:
-        with torch.no_grad():
-            optim_comps["noise_layer"].eval()
+        optim_comps["noise_layer"].eval()
 
     optim_imgs = []
     if model not in {"mit_alexnet", "mit_resnet18"}:
