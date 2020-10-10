@@ -2,9 +2,9 @@
 
 This code release accompanies the following paper:
 
-## Improving sample diversity of a pre-trained, class-conditional GAN by changing its class embeddings \[[Video](https://youtu.be/y5bDc-dbNjg)\]  \[[arXiv](https://arxiv.org/abs/1910.04760)\]
+## A cost-effective method for improving and re-purposing large, pre-trained GANs by fine-tuning their class-embeddings \[[Video](https://youtu.be/y5bDc-dbNjg)\]  \[[arXiv](https://arxiv.org/abs/1910.04760)\]
 
-Qi Li, Long Mai, Michael A. Alcorn, and Anh Nguyen
+Qi Li, Long Mai, Michael A. Alcorn, and [Anh Nguyen](http://anhnguyen.me/). Asian Conference on Computer Vision (ACCV). 2020. **Oral presentation**.
 
 ### Abstract
 
@@ -89,11 +89,11 @@ python3 sample_biggan_am_embedding.py "places" "266_pier"
 ## Citation
 If you find this work useful for your research, please consider citing:
 ```
-@article{li2019improving,
-  title={Improving sample diversity of a pre-trained, class-conditional GAN by changing its class embeddings},
+@article{li2020improving,
+  title={A cost-effective method for improving and re-purposing large, pre-trained GANs by fine-tuning their class-embeddings},
   author={Li, Qi and Mai, Long and Alcorn, Michael A. and Nguyen, Anh},
-  journal={arXiv preprint arXiv:1910.04760},
-  year={2019}
+  journal={Asian Conference on Computer Vision},
+  year={2020}
 }
 ```
 
