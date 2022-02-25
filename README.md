@@ -4,7 +4,7 @@ This code release accompanies the following paper:
 
 ## A cost-effective method for improving and re-purposing large, pre-trained GANs by fine-tuning their class-embeddings \[[Video](https://youtu.be/y5bDc-dbNjg)\]  \[[arXiv](https://arxiv.org/abs/1910.04760)\]
 
-Qi Li, Long Mai, Michael A. Alcorn, and [Anh Nguyen](http://anhnguyen.me/). Asian Conference on Computer Vision (ACCV). 2020. **Oral presentation**.
+Qi Li, Long Mai, Michael A. Alcorn, and [Anh Nguyen](http://anhnguyen.me/). Asian Conference on Computer Vision (ACCV). 2020. **Oral presentation**. :star: Huawei Best Application Paper Honorable Mention at ACCV 2020. ⭐
 
 ### Abstract
 
